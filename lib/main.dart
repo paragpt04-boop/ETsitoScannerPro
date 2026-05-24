@@ -44,8 +44,6 @@ class HitItem {
 }
 
 final _httpClient = HttpClient()
-  ..badCertificateCallback = (_, __, ___) => true
-  ..connectionTimeout = const Duration(seconds: 10);
 
 List<ComboItem> parseCombo(String text) {
   final lines = <ComboItem>[];
