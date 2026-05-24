@@ -1053,7 +1053,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(label, style: const TextStyle(fontSize: 9, color: cDarkGreen)),
-      Text(val, style: TextStyle(fontSize: 11, color: color, marginTop: 2)),
+      Text(val, style: TextStyle(fontSize: 11, color: color)),
     ]),
   );
 
