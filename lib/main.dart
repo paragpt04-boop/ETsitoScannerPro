@@ -1031,21 +1031,110 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
     ]),
   );
 
+  final _proxyUrls = {
+    'ProxiScrape HTTP': 'https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/http/data.txt',
+    'TheSpeedX HTTP': 'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt',
+    'TheSpeedX SOCKS4': 'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks4.txt',
+    'TheSpeedX SOCKS5': 'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt',
+    'Clarketm Lista': 'https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt',
+    'MuRongPIG HTTP': 'https://raw.githubusercontent.com/MuRongPIG/Proxy-Master/main/http.txt',
+    'MuRongPIG SOCKS5': 'https://raw.githubusercontent.com/MuRongPIG/Proxy-Master/main/socks5.txt',
+  };
+
+  bool _downloading = false;
+  final _customUrlCtrl = TextEditingController();
+
+  Future<void> _downloadProxies(String url) async {
+    setState(() => _downloading = true);
+    _toast('⌛ Descargando proxies...');
+    try {
+      final req = await _client.getUrl(Uri.parse(url));
+      req.headers.set('User-Agent', _ua());
+      final res = await req.close().timeout(const Duration(seconds: 15));
+      final body = await res.transform(utf8.decoder).join();
+      final lines = body.split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty && l.contains(':'))
+        .toList();
+      setState(() {
+        _proxies.clear();
+        _proxies.addAll(lines);
+        _downloading = false;
+      });
+      _toast('✓ \${lines.length} proxies descargados');
+    } catch (e) {
+      setState(() => _downloading = false);
+      _toast('⚠ Error descargando proxies');
+    }
+  }
+
   Widget _proxyTab() => ListView(padding: const EdgeInsets.all(10), children: [
-    _card(ac: cMg, child: Column(children: [
-      _ct('PROXIES'),
-      _btn('📂 CARGAR ARCHIVO .TXT', c: cMg, onTap: _loadProxies),
-      const SizedBox(height: 10),
-      _prow('TOTAL CARGADOS', '${_proxies.length}', cG),
-      _prow('ESTADO', _proxies.isEmpty ? 'Sin proxies — directo' : '${_proxies.length} listos', cG),
-      const SizedBox(height: 10),
-      _btn('✗ LIMPIAR PROXIES', c: cRe, onTap: () => setState(() => _proxies.clear())),
+    _card(ac: cMg, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _ct('FUENTES ONLINE'),
+      ..._proxyUrls.entries.map((e) => GestureDetector(
+        onTap: () => _downloadProxies(e.value),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: cMg.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(color: cMg.withOpacity(0.25)),
+          ),
+          child: Row(children: [
+            Container(width: 8, height: 8, decoration: const BoxDecoration(
+              shape: BoxShape.circle, color: cMg,
+              boxShadow: [BoxShadow(color: cMg, blurRadius: 4)],
+            )),
+            const SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(e.key, style: const TextStyle(color: cMg, fontSize: 12, fontWeight: FontWeight.bold)),
+              Text(e.value.replaceAll('https://raw.githubusercontent.com/', 'github:'), 
+                style: TextStyle(color: cDg.withOpacity(0.7), fontSize: 8),
+                overflow: TextOverflow.ellipsis),
+            ])),
+            _downloading
+              ? const SizedBox(width: 16, height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: cMg))
+              : const Icon(Icons.download, color: cMg, size: 18),
+          ]),
+        ),
+      )),
+    ])),
+    _card(ac: cCy, child: Column(children: [
+      _ct('URL PERSONALIZADA'),
+      TextField(
+        controller: _customUrlCtrl,
+        style: const TextStyle(color: cG, fontSize: 11, fontFamily: 'monospace'),
+        decoration: InputDecoration(
+          hintText: 'https://mi-lista.com/proxies.txt',
+          hintStyle: TextStyle(color: cDg.withOpacity(0.6), fontSize: 11),
+          filled: true, fillColor: Colors.black54,
+          prefixIcon: const Icon(Icons.link, color: cDg, size: 16),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: cBr)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: cBr)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: cG, width: 1.5)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        ),
+      ),
+      const SizedBox(height: 8),
+      _btn('⬇ DESCARGAR DE URL', c: cCy, onTap: () {
+        final url = _customUrlCtrl.text.trim();
+        if (url.isEmpty) { _toast('⚠ Ingresa una URL'); return; }
+        _downloadProxies(url);
+      }),
+    ])),
+    _card(ac: cYe, child: Column(children: [
+      _ct('ARCHIVO LOCAL'),
+      _btn('📂 CARGAR ARCHIVO .TXT', c: cYe, onTap: _loadProxies),
     ])),
     _card(child: Column(children: [
-      _ct('INFO'),
-      _prow('MODO ACTUAL', _proxies.isEmpty ? 'Conexión directa' : 'Con proxies', cCy),
-      _prow('PROTOCOLO', 'HTTP/HTTPS/SOCKS', cDg),
-      _prow('ROTACIÓN', 'Aleatoria por petición', cDg),
+      _ct('ESTADO'),
+      _prow('TOTAL CARGADOS', '${_proxies.length}', cG),
+      _prow('MODO', _proxies.isEmpty ? 'Directo' : 'Con proxies', _proxies.isEmpty ? cDg : cG),
+      _prow('PROTOCOLO', 'HTTP/SOCKS4/SOCKS5', cDg),
+      const SizedBox(height: 8),
+      _btn('✗ LIMPIAR PROXIES', c: cRe, onTap: () => setState(() => _proxies.clear())),
     ])),
   ]);
 
