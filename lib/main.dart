@@ -299,7 +299,7 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
   void _log(String m) {
     if (!mounted) return;
     setState(() {
-      _logs.insert(0, '[${TimeOfDay.now().format(context)}] $m');
+      _logs.add('[${TimeOfDay.now().format(context)}] $m');
       if (_logs.length > 200) _logs.removeLast();
     });
   }
