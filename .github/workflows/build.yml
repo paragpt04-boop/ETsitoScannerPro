@@ -22,35 +22,47 @@ jobs:
         with:
           flutter-version: '3.19.0'
           channel: 'stable'
+          cache: true
+
+      - name: Cache Gradle
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle*') }}
+          restore-keys: gradle-
+
+      - name: Create Flutter project
+        run: |
+          flutter create --project-name jsus_iptv --org com.jsus . --platforms android 2>/dev/null || true
+
+      - name: Restore main.dart
+        run: git checkout lib/main.dart
 
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Create Android project
-        run: flutter create --project-name jsus_iptv --org com.jsus . --platforms android 2>/dev/null || true
-
       - name: Set App Name
         run: |
-          sed -i 's/android:label="[^"]*"/android:label="JsusIPTV"/' \
-            android/app/src/main/AndroidManifest.xml
+          sed -i 's/android:label="[^"]*"/android:label="JsusIPTV"/' android/app/src/main/AndroidManifest.xml
 
       - name: Set App Icon
         run: |
           pip install Pillow --quiet
-          python3 << 'PYEOF'
-          from PIL import Image
-          import os
-          img = Image.open("android-icon/icon.png").convert("RGBA")
-          sizes = {"mipmap-mdpi":48,"mipmap-hdpi":72,"mipmap-xhdpi":96,"mipmap-xxhdpi":144,"mipmap-xxxhdpi":192}
-          base = "android/app/src/main/res"
-          for folder, size in sizes.items():
-            path = f"{base}/{folder}"
-            os.makedirs(path, exist_ok=True)
-            r = img.resize((size,size), Image.LANCZOS)
-            r.save(f"{path}/ic_launcher.png")
-            r.save(f"{path}/ic_launcher_round.png")
-            print(f"OK {folder} {size}x{size}")
-          PYEOF
+          python3 -c "
+from PIL import Image
+import os
+img = Image.open('android-icon/icon.png').convert('RGBA')
+sizes = {'mipmap-mdpi':48,'mipmap-hdpi':72,'mipmap-xhdpi':96,'mipmap-xxhdpi':144,'mipmap-xxxhdpi':192}
+base = 'android/app/src/main/res'
+for f,s in sizes.items():
+    p = f'{base}/{f}'
+    os.makedirs(p, exist_ok=True)
+    img.resize((s,s), Image.LANCZOS).save(f'{p}/ic_launcher.png')
+    img.resize((s,s), Image.LANCZOS).save(f'{p}/ic_launcher_round.png')
+    print(f'OK {f}')
+"
 
       - name: Build APK
         run: flutter build apk --release --no-tree-shake-icons
