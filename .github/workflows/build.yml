@@ -25,6 +25,9 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v2
 
+      - name: Install ImageMagick
+        run: sudo apt-get install -y imagemagick
+
       - name: Install Capacitor
         run: |
           npm init -y
