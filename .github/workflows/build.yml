@@ -25,9 +25,6 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v2
 
-      - name: Install Pillow
-        run: pip install Pillow
-
       - name: Install Capacitor
         run: |
           npm init -y
@@ -41,29 +38,22 @@ jobs:
 
       - name: Set App Icon
         run: |
-          python3 << 'PYEOF'
-          from PIL import Image
-          import os
+          pip install Pillow --quiet
+          python3 - << 'PYEOF'
+import sys
+from PIL import Image
+import os
 
-          src = "android-icon/icon.png"
-          img = Image.open(src).convert("RGBA")
-
-          sizes = {
-            "mdpi": 48,
-            "hdpi": 72,
-            "xhdpi": 96,
-            "xxhdpi": 144,
-            "xxxhdpi": 192
-          }
-
-          for folder, size in sizes.items():
-            path = f"android/app/src/main/res/mipmap-{folder}"
-            os.makedirs(path, exist_ok=True)
-            resized = img.resize((size, size), Image.LANCZOS)
-            resized.save(f"{path}/ic_launcher.png")
-            resized.save(f"{path}/ic_launcher_round.png")
-            print(f"✓ {folder} {size}x{size}")
-          PYEOF
+img = Image.open("android-icon/icon.png").convert("RGBA")
+sizes = {"mdpi":48,"hdpi":72,"xhdpi":96,"xxhdpi":144,"xxxhdpi":192}
+for folder,size in sizes.items():
+    path = f"android/app/src/main/res/mipmap-{folder}"
+    os.makedirs(path, exist_ok=True)
+    r = img.resize((size,size), Image.LANCZOS)
+    r.save(f"{path}/ic_launcher.png")
+    r.save(f"{path}/ic_launcher_round.png")
+    print(f"OK {folder} {size}x{size}")
+PYEOF
 
       - name: Set App Name
         run: |
