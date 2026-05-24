@@ -30,10 +30,11 @@ jobs:
           npm init -y
           npm install @capacitor/core @capacitor/cli @capacitor/android
 
-      - name: Init Capacitor
+      - name: Init y Build
         run: |
-          npx cap init ETsitoScannerPro com.etsito.scannerpro --web-dir .
+          npx cap init ETsitoScannerPro com.etsito.scannerpro --web-dir www
           npx cap add android
+          npx cap copy android
 
       - name: Build APK
         run: |
