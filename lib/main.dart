@@ -75,7 +75,7 @@ Future<Map<String, dynamic>?> checkAccount(String panel, String user, String pas
     req.headers.set('User-Agent', _ua());
     req.headers.set('Accept', '*/*');
     req.headers.set('Connection', 'keep-alive');
-    final res = await req.close().timeout(Duration(seconds: timeout));
+    final res = await req.close().timeout(Duration(seconds: timeout.toInt()));
     if (res.statusCode >= 500) return null;
     final body = await res.transform(utf8.decoder).join();
     try {
