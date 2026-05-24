@@ -34,8 +34,7 @@ jobs:
           restore-keys: gradle-
 
       - name: Create Flutter project
-        run: |
-          flutter create --project-name jsus_iptv --org com.jsus . --platforms android 2>/dev/null || true
+        run: flutter create --project-name jsus_iptv --org com.jsus . --platforms android 2>/dev/null || true
 
       - name: Restore main.dart
         run: git checkout lib/main.dart
@@ -44,25 +43,12 @@ jobs:
         run: flutter pub get
 
       - name: Set App Name
-        run: |
-          sed -i 's/android:label="[^"]*"/android:label="JsusIPTV"/' android/app/src/main/AndroidManifest.xml
+        run: sed -i 's/android:label="[^"]*"/android:label="JsusIPTV"/' android/app/src/main/AndroidManifest.xml
 
       - name: Set App Icon
         run: |
           pip install Pillow --quiet
-          python3 -c "
-from PIL import Image
-import os
-img = Image.open('android-icon/icon.png').convert('RGBA')
-sizes = {'mipmap-mdpi':48,'mipmap-hdpi':72,'mipmap-xhdpi':96,'mipmap-xxhdpi':144,'mipmap-xxxhdpi':192}
-base = 'android/app/src/main/res'
-for f,s in sizes.items():
-    p = f'{base}/{f}'
-    os.makedirs(p, exist_ok=True)
-    img.resize((s,s), Image.LANCZOS).save(f'{p}/ic_launcher.png')
-    img.resize((s,s), Image.LANCZOS).save(f'{p}/ic_launcher_round.png')
-    print(f'OK {f}')
-"
+          python3 set_icon.py
 
       - name: Build APK
         run: flutter build apk --release --no-tree-shake-icons
