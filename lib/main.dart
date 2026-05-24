@@ -43,10 +43,7 @@ class HitItem {
   }) : id = DateTime.now().millisecondsSinceEpoch.toString();
 }
 
-final _httpClient = HttpClient()
-
-List<ComboItem> parseCombo(String text) {
-  final lines = <ComboItem>[];
+final _httpClient = HttpClient()..badCertificateCallback = (_, __, ___) => true;
   final seen = <String>{};
   for (var raw in text.split('\n')) {
     var line = raw.trim().replaceAll('\r', '').replaceAll('\uFEFF', '');
