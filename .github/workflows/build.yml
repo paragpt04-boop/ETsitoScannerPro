@@ -30,11 +30,28 @@ jobs:
           npm init -y
           npm install @capacitor/core@4.8.1 @capacitor/cli@4.8.1 @capacitor/android@4.8.1
 
-      - name: Init y Build
+      - name: Init Capacitor
         run: |
           npx cap init JsusIPTV com.jsus.iptv --web-dir www
           npx cap add android
           npx cap copy android
+
+      - name: Set App Icon
+        run: |
+          for size in 48 72 96 144 192; do
+            case $size in
+              48)  folder="mdpi";;
+              72)  folder="hdpi";;
+              96)  folder="xhdpi";;
+              144) folder="xxhdpi";;
+              192) folder="xxxhdpi";;
+            esac
+            mkdir -p android/app/src/main/res/mipmap-${folder}
+            convert android-icon/icon.png -resize ${size}x${size} \
+              android/app/src/main/res/mipmap-${folder}/ic_launcher.png
+            cp android/app/src/main/res/mipmap-${folder}/ic_launcher.png \
+              android/app/src/main/res/mipmap-${folder}/ic_launcher_round.png
+          done
 
       - name: Build APK
         run: |
