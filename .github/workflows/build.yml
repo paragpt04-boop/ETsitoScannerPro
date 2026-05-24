@@ -25,8 +25,8 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v2
 
-      - name: Install ImageMagick
-        run: sudo apt-get install -y imagemagick
+      - name: Install Pillow
+        run: pip install Pillow
 
       - name: Install Capacitor
         run: |
@@ -41,20 +41,34 @@ jobs:
 
       - name: Set App Icon
         run: |
-          for size in 48 72 96 144 192; do
-            case $size in
-              48)  folder="mdpi";;
-              72)  folder="hdpi";;
-              96)  folder="xhdpi";;
-              144) folder="xxhdpi";;
-              192) folder="xxxhdpi";;
-            esac
-            mkdir -p android/app/src/main/res/mipmap-${folder}
-            convert android-icon/icon.png -resize ${size}x${size} \
-              android/app/src/main/res/mipmap-${folder}/ic_launcher.png
-            cp android/app/src/main/res/mipmap-${folder}/ic_launcher.png \
-              android/app/src/main/res/mipmap-${folder}/ic_launcher_round.png
-          done
+          python3 << 'PYEOF'
+          from PIL import Image
+          import os
+
+          src = "android-icon/icon.png"
+          img = Image.open(src).convert("RGBA")
+
+          sizes = {
+            "mdpi": 48,
+            "hdpi": 72,
+            "xhdpi": 96,
+            "xxhdpi": 144,
+            "xxxhdpi": 192
+          }
+
+          for folder, size in sizes.items():
+            path = f"android/app/src/main/res/mipmap-{folder}"
+            os.makedirs(path, exist_ok=True)
+            resized = img.resize((size, size), Image.LANCZOS)
+            resized.save(f"{path}/ic_launcher.png")
+            resized.save(f"{path}/ic_launcher_round.png")
+            print(f"✓ {folder} {size}x{size}")
+          PYEOF
+
+      - name: Set App Name
+        run: |
+          sed -i 's/android:label="[^"]*"/android:label="JsusIPTV"/' \
+            android/app/src/main/AndroidManifest.xml
 
       - name: Build APK
         run: |
