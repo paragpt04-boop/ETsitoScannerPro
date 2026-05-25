@@ -25,6 +25,11 @@ jobs:
           git checkout lib/main.dart
           git checkout pubspec.yaml
 
+      - name: Set Windows Icon
+        run: |
+          pip install Pillow
+          python set_win_icon.py
+
       - name: Install dependencies
         run: flutter pub get
 
@@ -32,8 +37,7 @@ jobs:
         run: flutter build windows --release
 
       - name: Zip output
-        run: |
-          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath JsusIPTV-Windows.zip
+        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath JsusIPTV-Windows.zip
 
       - name: Upload EXE
         uses: actions/upload-artifact@v4
