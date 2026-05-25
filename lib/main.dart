@@ -1289,7 +1289,7 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
               borderRadius: BorderRadius.circular(2),
               border: Border.all(color: _tout == v ? cG : cBr)),
             child: Text('${v}s', style: TextStyle(fontSize: 10,
-              color: _tout == v ? cG : cDg, fontFamily: 'monospace', fontWeight: FontWeight.bold))))).toList(),
+              color: _tout == v ? cG : cDg, fontFamily: 'monospace', fontWeight: FontWeight.bold)))))).toList(),
     ])),
   ]);
 
