@@ -406,7 +406,7 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
         final raw = _proxies[DateTime.now().millisecondsSinceEpoch % _proxies.length];
         proxy = _parseProxy(raw);
       }
-      final data = await checkAcc(_srv!, item.user, item.pass, _tout, proxy: proxy);
+      final data = await checkAcc(_srv!, item.user, item.pass, _tout, proxy);
       if (mounted) setState(() => _checked++);
       if (data != null) {
         final ui = (data['user_info'] as Map?) ?? {};
