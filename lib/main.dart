@@ -321,10 +321,28 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
     final r = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['txt']);
     if (r == null) return;
     final text = await File(r.files.single.path!).readAsString();
-    final lines = text.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty && l.contains(':')).toList();
+    final lines = text.split('\n')
+      .map((l) => l.trim())
+      .where((l) => l.isNotEmpty && l.contains(':'))
+      .toList();
     setState(() { _proxies.clear(); _proxies.addAll(lines); });
-    _log('[+] PROXIES: ${lines.length}');
-    _toast('${lines.length} proxies');
+    _log('[+] PROXIES: \${lines.length}');
+    _toast('\${lines.length} proxies');
+  }
+
+  // Parsear proxy en cualquier formato
+  // host:port
+  // host:port:user:pass
+  // socks5://host:port
+  // socks5://user:pass@host:port
+  String _parseProxy(String raw) {
+    raw = raw.trim();
+    if (raw.startsWith('socks') || raw.startsWith('http')) return raw;
+    final parts = raw.split(':');
+    if (parts.length == 2) return 'http://\${parts[0]}:\${parts[1]}';
+    if (parts.length == 4) return 'socks5://\${parts[2]}:\${parts[3]}@\${parts[0]}:\${parts[1]}';
+    if (parts.length == 3) return 'http://\${parts[0]}:\${parts[1]}';
+    return 'http://\$raw';
   }
 
   void _addSrv() {
@@ -383,7 +401,12 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
     Future<void> work(ComboItem item) async {
       while (_paused && _scanning) await Future.delayed(const Duration(milliseconds: 100));
       if (!_scanning) { active--; chk(); return; }
-      final data = await checkAcc(_srv!, item.user, item.pass, _tout);
+      String? proxy;
+      if (_proxies.isNotEmpty) {
+        final raw = _proxies[DateTime.now().millisecondsSinceEpoch % _proxies.length];
+        proxy = _parseProxy(raw);
+      }
+      final data = await checkAcc(_srv!, item.user, item.pass, _tout, proxy: proxy);
       if (mounted) setState(() => _checked++);
       if (data != null) {
         final ui = (data['user_info'] as Map?) ?? {};
