@@ -1279,7 +1279,7 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
       ]),
       Slider(value: _tout.toDouble(), min: 5, max: 30,
         onChanged: (v) => setState(() => _tout = v.round())),
-      Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [5,8,10,15,20].map((v) =>
+      Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [5,8,10,15,20].map<Widget>((v) =>
         GestureDetector(
           onTap: () => setState(() => _tout = v),
           child: Container(
@@ -1289,7 +1289,7 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
               borderRadius: BorderRadius.circular(2),
               border: Border.all(color: _tout == v ? cG : cBr)),
             child: Text('${v}s', style: TextStyle(fontSize: 10,
-              color: _tout == v ? cG : cDg, fontFamily: 'monospace', fontWeight: FontWeight.bold)))))).toList(),
+              color: _tout == v ? cG : cDg, fontFamily: 'monospace', fontWeight: FontWeight.bold))))).toList(),
     ])),
   ]);
 
