@@ -18,24 +18,22 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Enable Windows desktop
+      - name: Setup Windows project
         run: |
           flutter config --enable-windows-desktop
-          flutter create --platforms=windows . 2>$null || true
+          flutter create --org com.jsus --project-name jsus_iptv --platforms=windows .
+          git checkout lib/main.dart
+          git checkout pubspec.yaml
 
       - name: Install dependencies
         run: flutter pub get
-
-      - name: Restore main.dart
-        run: git checkout lib/main.dart
 
       - name: Build Windows
         run: flutter build windows --release
 
       - name: Zip output
         run: |
-          cd build/windows/x64/runner/Release
-          7z a ../../../../../JsusIPTV-Windows.zip .
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath JsusIPTV-Windows.zip
 
       - name: Upload EXE
         uses: actions/upload-artifact@v4
