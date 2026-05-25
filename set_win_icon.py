@@ -1,6 +1,9 @@
 from PIL import Image
 import shutil, os
 
+os.makedirs('assets', exist_ok=True)
+os.makedirs('windows/runner/resources', exist_ok=True)
+
 img = Image.open('android-icon/icon.png').convert('RGBA')
 sizes = [16, 32, 48, 64, 128, 256]
 img.save('windows/runner/resources/app_icon.ico', format='ICO', sizes=[(s,s) for s in sizes])
