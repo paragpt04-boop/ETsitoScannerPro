@@ -1,60 +1,10 @@
 name: Build APK Flutter
 
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Setup Java
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.19.0'
-          channel: 'stable'
-          cache: true
-
-      - name: Cache Gradle
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ hashFiles('**/*.gradle*') }}
-          restore-keys: gradle-
-
-      - name: Create Flutter project
-        run: flutter create --project-name jsus_iptv --org com.jsus . --platforms android 2>/dev/null || true
-
-      - name: Restore main.dart
-        run: git checkout lib/main.dart
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Set App Name
-        run: sed -i 's/android:label="[^"]*"/android:label="JsusIPTV"/' android/app/src/main/AndroidManifest.xml
-
-      - name: Set App Icon
-        run: |
-          pip install Pillow --quiet
-          python3 set_icon.py
-
-      - name: Build APK
-        run: flutter build apk --release --no-tree-shake-icons
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: JsusIPTV
-          path: build/app/outputs/flutter-apk/app-release.apk
+      - run: echo "Manual only"

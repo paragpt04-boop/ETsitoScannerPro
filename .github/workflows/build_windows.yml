@@ -18,11 +18,16 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Enable Windows
-        run: flutter config --enable-windows-desktop
+      - name: Enable Windows desktop
+        run: |
+          flutter config --enable-windows-desktop
+          flutter create --platforms=windows . 2>$null || true
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Restore main.dart
+        run: git checkout lib/main.dart
 
       - name: Build Windows
         run: flutter build windows --release
