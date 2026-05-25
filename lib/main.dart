@@ -174,7 +174,7 @@ class JsusApp extends StatelessWidget {
         inactiveTrackColor: cBr, overlayColor: Color(0x2200FF41),
       ),
       scrollbarTheme: ScrollbarThemeData(
-        thumbColor: WidgetStateProperty.all(cG.withOpacity(0.3)),
+        thumbColor: MaterialStateProperty.all(cG.withOpacity(0.3)),
       ),
     ),
     home: const HomeScreen(),
