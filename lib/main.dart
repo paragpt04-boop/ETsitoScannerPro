@@ -324,7 +324,7 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
   ));
 
   Future<void> _loadCombo() async {
-    final r = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['txt']);
+    final r = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['txt'], allowMultiple: true);
     if (r == null) return;
     final text = await File(r.files.single.path!).readAsString();
     final parsed = parseCombo(text);
@@ -335,7 +335,7 @@ class _HS extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _loadProxies() async {
-    final r = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['txt']);
+    final r = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['txt'], allowMultiple: true);
     if (r == null) return;
     final text = await File(r.files.single.path!).readAsString();
     final lines = text.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty && l.contains(':')).toList();
