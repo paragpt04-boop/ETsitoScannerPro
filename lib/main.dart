@@ -67,7 +67,7 @@ List<ComboItem> parseCombo(String text) {
   return lines;
 }
 
-Future<Map<String, dynamic>?> checkAcc(String panel, String user, String pass, int tout) async {
+Future<Map<String, dynamic>?> checkAcc(String panel, String user, String pass, int tout, [String? proxy]) async {
   try {
     final url = '$panel/player_api.php?username=${Uri.encodeComponent(user)}&password=${Uri.encodeComponent(pass)}';
     final req = await _client.getUrl(Uri.parse(url));
